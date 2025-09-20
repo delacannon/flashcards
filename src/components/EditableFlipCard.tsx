@@ -13,6 +13,12 @@ import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import { remarkHighlight } from '@/lib/remarkHighlight';
 
+interface MarkdownStorage {
+  markdown?: {
+    getMarkdown: () => string;
+  };
+}
+
 interface EditableFlipCardProps {
   id: string;
   question: string;
@@ -74,24 +80,7 @@ export function EditableFlipCard({
     content: question || '',
     editable: isEditingQuestion,
     onBlur: () => {
-      const htmlContent = questionEditor?.getHTML() || '';
-      // Convert HTML to markdown-like format
-      let markdownContent = htmlContent
-        .replace(/<p>/g, '')
-        .replace(/<\/p>/g, '\n')
-        .replace(/<strong>/g, '**')
-        .replace(/<\/strong>/g, '**')
-        .replace(/<em>/g, '*')
-        .replace(/<\/em>/g, '*')
-        .replace(/<mark[^>]*>/g, '==')
-        .replace(/<\/mark>/g, '==')
-        .replace(/<code>/g, '`')
-        .replace(/<\/code>/g, '`')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&amp;/g, '&')
-        .replace(/\n+$/, ''); // Remove trailing newlines
-
+      const markdownContent = (questionEditor?.storage as MarkdownStorage).markdown?.getMarkdown() || '';
       if (markdownContent !== question) {
         onUpdateContent(id, markdownContent, answer);
       }
@@ -128,24 +117,7 @@ export function EditableFlipCard({
     content: answer || '',
     editable: isEditingAnswer,
     onBlur: () => {
-      const htmlContent = answerEditor?.getHTML() || '';
-      // Convert HTML to markdown-like format
-      let markdownContent = htmlContent
-        .replace(/<p>/g, '')
-        .replace(/<\/p>/g, '\n')
-        .replace(/<strong>/g, '**')
-        .replace(/<\/strong>/g, '**')
-        .replace(/<em>/g, '*')
-        .replace(/<\/em>/g, '*')
-        .replace(/<mark[^>]*>/g, '==')
-        .replace(/<\/mark>/g, '==')
-        .replace(/<code>/g, '`')
-        .replace(/<\/code>/g, '`')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&amp;/g, '&')
-        .replace(/\n+$/, ''); // Remove trailing newlines
-
+      const markdownContent = (answerEditor?.storage as MarkdownStorage).markdown?.getMarkdown() || '';
       if (markdownContent !== answer) {
         onUpdateContent(id, question, markdownContent);
       }
@@ -182,71 +154,21 @@ export function EditableFlipCard({
 
   useEffect(() => {
     if (questionEditor) {
-      const currentHtml = questionEditor.getHTML();
-      const currentMarkdown = currentHtml
-        .replace(/<p>/g, '')
-        .replace(/<\/p>/g, '\n')
-        .replace(/<strong>/g, '**')
-        .replace(/<\/strong>/g, '**')
-        .replace(/<em>/g, '*')
-        .replace(/<\/em>/g, '*')
-        .replace(/<mark[^>]*>/g, '==')
-        .replace(/<\/mark>/g, '==')
-        .replace(/<code>/g, '`')
-        .replace(/<\/code>/g, '`')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&amp;/g, '&')
-        .replace(/\n+$/, '');
-
+      const currentMarkdown = (questionEditor.storage as MarkdownStorage).markdown?.getMarkdown() || '';
       if (question && question !== currentMarkdown) {
-        // Parse markdown to HTML for Tiptap
-        const htmlContent = question
-          .replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>')
-          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-          .replace(/\*(.*?)\*/g, '<em>$1</em>')
-          .replace(/==(.*?)==/g, '<mark>$1</mark>')
-          .replace(/`([^`]+)`/g, '<code>$1</code>')
-          .replace(/\n/g, '</p><p>');
-
-        questionEditor.commands.setContent(`<p>${htmlContent}</p>`);
+        questionEditor.commands.setContent(question);
       }
     }
-  }, [question]);
+  }, [question, questionEditor]);
 
   useEffect(() => {
     if (answerEditor) {
-      const currentHtml = answerEditor.getHTML();
-      const currentMarkdown = currentHtml
-        .replace(/<p>/g, '')
-        .replace(/<\/p>/g, '\n')
-        .replace(/<strong>/g, '**')
-        .replace(/<\/strong>/g, '**')
-        .replace(/<em>/g, '*')
-        .replace(/<\/em>/g, '*')
-        .replace(/<mark[^>]*>/g, '==')
-        .replace(/<\/mark>/g, '==')
-        .replace(/<code>/g, '`')
-        .replace(/<\/code>/g, '`')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&amp;/g, '&')
-        .replace(/\n+$/, '');
-
+      const currentMarkdown = (answerEditor.storage as MarkdownStorage).markdown?.getMarkdown() || '';
       if (answer && answer !== currentMarkdown) {
-        // Parse markdown to HTML for Tiptap
-        const htmlContent = answer
-          .replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>')
-          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-          .replace(/\*(.*?)\*/g, '<em>$1</em>')
-          .replace(/==(.*?)==/g, '<mark>$1</mark>')
-          .replace(/`([^`]+)`/g, '<code>$1</code>')
-          .replace(/\n/g, '</p><p>');
-
-        answerEditor.commands.setContent(`<p>${htmlContent}</p>`);
+        answerEditor.commands.setContent(answer);
       }
     }
-  }, [answer]);
+  }, [answer, answerEditor]);
 
   const { transform, opacity } = useSpring({
     opacity: flipped ? 1 : 0,
