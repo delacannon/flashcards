@@ -201,7 +201,7 @@ export function PlayMode({ set, onExit }: PlayModeProps) {
                         >
                           <div className='text-center'>
                             <div
-                              className='text-2xl leading-relaxed prose prose-lg max-w-none'
+                              className='text-2xl leading-relaxed prose prose-lg max-w-none select-none'
                               style={{
                                 fontSize: set.config?.questionFontSize
                                   ? `${
@@ -212,6 +212,7 @@ export function PlayMode({ set, onExit }: PlayModeProps) {
                                 fontFamily:
                                   set.config?.questionFontFamily || 'Inter',
                                 color: set.config?.questionFgColor || '#000000',
+                                userSelect: 'none',
                               }}
                             >
                               <ReactMarkdown
@@ -277,7 +278,7 @@ export function PlayMode({ set, onExit }: PlayModeProps) {
                         >
                           <div className='text-center'>
                             <div
-                              className='text-2xl leading-relaxed prose prose-lg max-w-none'
+                              className='text-2xl leading-relaxed prose prose-lg max-w-none select-none'
                               style={{
                                 fontSize: set.config?.answerFontSize
                                   ? `${
@@ -287,6 +288,7 @@ export function PlayMode({ set, onExit }: PlayModeProps) {
                                 fontFamily:
                                   set.config?.answerFontFamily || 'Inter',
                                 color: set.config?.answerFgColor || '#000000',
+                                userSelect: 'none',
                               }}
                             >
                               <ReactMarkdown
