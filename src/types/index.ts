@@ -12,10 +12,12 @@ export interface FlashcardSetConfig {
   questionFgColor?: string;
   questionFontSize?: string;
   questionFontFamily?: string;
+  questionBackgroundPattern?: string;
   answerBgColor?: string;
   answerFgColor?: string;
   answerFontSize?: string;
   answerFontFamily?: string;
+  answerBackgroundPattern?: string;
   backgroundImage?: string;
 }
 
@@ -60,6 +62,7 @@ export interface FlashcardStyles {
   color?: string;
   fontSize?: string;
   fontFamily?: string;
+  backgroundPattern?: string;
 }
 
 export interface DragHandleProps {

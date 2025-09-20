@@ -286,10 +286,12 @@ export function FlashcardSetView({
                   questionFgColor={set.config?.questionFgColor}
                   questionFontSize={set.config?.questionFontSize}
                   questionFontFamily={set.config?.questionFontFamily}
+                  questionBackgroundPattern={set.config?.questionBackgroundPattern}
                   answerBgColor={set.config?.answerBgColor}
                   answerFgColor={set.config?.answerFgColor}
                   answerFontSize={set.config?.answerFontSize}
                   answerFontFamily={set.config?.answerFontFamily}
+                  answerBackgroundPattern={set.config?.answerBackgroundPattern}
                   onEdit={() => handleEditFlashcard(flashcard)}
                   onDelete={() => handleDeleteFlashcard(flashcard.id)}
                   onUpdateContent={handleUpdateFlashcardContent}

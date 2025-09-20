@@ -12,6 +12,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import { remarkHighlight } from '@/lib/remarkHighlight';
+import { getPatternById } from '@/lib/patterns';
 
 interface MarkdownStorage {
   markdown?: {
@@ -28,10 +29,12 @@ interface EditableFlipCardProps {
   questionFgColor?: string;
   questionFontSize?: string;
   questionFontFamily?: string;
+  questionBackgroundPattern?: string;
   answerBgColor?: string;
   answerFgColor?: string;
   answerFontSize?: string;
   answerFontFamily?: string;
+  answerBackgroundPattern?: string;
   onEdit: () => void;
   onDelete: () => void;
   onUpdateContent: (id: string, question: string, answer: string) => void;
@@ -48,10 +51,12 @@ export function EditableFlipCard({
   questionFgColor,
   questionFontSize,
   questionFontFamily,
+  questionBackgroundPattern,
   answerBgColor,
   answerFgColor,
   answerFontSize,
   answerFontFamily,
+  answerBackgroundPattern,
   onEdit,
   onDelete,
   onUpdateContent,
@@ -225,7 +230,9 @@ export function EditableFlipCard({
             isEditingQuestion && 'ring-2 ring-primary ring-offset-2'
           )}
           style={{
-            backgroundColor: questionBgColor || undefined,
+            ...(questionBackgroundPattern && questionBackgroundPattern !== 'none'
+              ? getPatternById(questionBackgroundPattern)?.getCSS(questionBgColor || '#ffffff')
+              : { backgroundColor: questionBgColor || undefined }),
             color: questionFgColor || undefined,
             fontFamily: questionFontFamily || undefined,
           }}
@@ -333,7 +340,9 @@ export function EditableFlipCard({
             isEditingAnswer && 'ring-2 ring-primary ring-offset-2'
           )}
           style={{
-            backgroundColor: answerBgColor || undefined,
+            ...(answerBackgroundPattern && answerBackgroundPattern !== 'none'
+              ? getPatternById(answerBackgroundPattern)?.getCSS(answerBgColor || '#f3f4f6')
+              : { backgroundColor: answerBgColor || undefined }),
             color: answerFgColor || undefined,
             fontFamily: answerFontFamily || undefined,
           }}

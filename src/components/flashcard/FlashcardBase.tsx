@@ -1,6 +1,7 @@
 import React, { memo, ReactNode } from 'react';
 import { useSpring, animated } from '@react-spring/web';
 import { cn } from '@/lib/utils';
+import { getPatternById } from '@/lib/patterns';
 import type { FlashcardStyles } from '@/types';
 
 export interface FlashcardBaseProps {
@@ -64,7 +65,11 @@ export const FlashcardBase = memo(function FlashcardBase({
         <div
           className="w-full h-full rounded-xl border shadow hover:shadow-lg transition-shadow min-h-[200px]"
           style={{
-            backgroundColor: questionStyles.backgroundColor,
+            ...(
+              questionStyles.backgroundPattern && questionStyles.backgroundPattern !== 'none'
+                ? getPatternById(questionStyles.backgroundPattern)?.getCSS(questionStyles.backgroundColor || '#ffffff')
+                : { backgroundColor: questionStyles.backgroundColor }
+            ),
             color: questionStyles.color,
             fontFamily: questionStyles.fontFamily,
           }}
@@ -108,7 +113,11 @@ export const FlashcardBase = memo(function FlashcardBase({
         <div
           className="w-full h-full rounded-xl border shadow hover:shadow-lg transition-shadow min-h-[200px]"
           style={{
-            backgroundColor: answerStyles.backgroundColor,
+            ...(
+              answerStyles.backgroundPattern && answerStyles.backgroundPattern !== 'none'
+                ? getPatternById(answerStyles.backgroundPattern)?.getCSS(answerStyles.backgroundColor || '#f3f4f6')
+                : { backgroundColor: answerStyles.backgroundColor }
+            ),
             color: answerStyles.color,
             fontFamily: answerStyles.fontFamily,
           }}

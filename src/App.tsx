@@ -41,6 +41,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { DebouncedColorInput } from '@/components/ui/DebouncedColorInput';
+import { StackedCard } from '@/components/ui/StackedCard';
+import { PatternGallery } from '@/components/ui/PatternGallery';
+import { getPatternById } from '@/lib/patterns';
 
 function App() {
   const [playingSet, setPlayingSet] = useState<FlashcardSet | null>(null);
@@ -78,6 +82,10 @@ function App() {
     useState<string>('16px');
   const [configAnswerFontFamily, setConfigAnswerFontFamily] =
     useState<string>('Inter');
+  const [configQuestionPattern, setConfigQuestionPattern] = 
+    useState<string>('none');
+  const [configAnswerPattern, setConfigAnswerPattern] = 
+    useState<string>('none');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [setToDelete, setSetToDelete] = useState<string | null>(null);
 
@@ -111,6 +119,8 @@ function App() {
       setConfigAnswerFgColor(set.config?.answerFgColor || '#000000');
       setConfigAnswerFontSize(set.config?.answerFontSize || '16px');
       setConfigAnswerFontFamily(set.config?.answerFontFamily || 'Inter');
+      setConfigQuestionPattern(set.config?.questionBackgroundPattern || 'none');
+      setConfigAnswerPattern(set.config?.answerBackgroundPattern || 'none');
       setIsModalOpen(true);
       setIsCreatingSet(false);
     }
@@ -163,6 +173,8 @@ function App() {
     setConfigAnswerFgColor('#000000');
     setConfigAnswerFontSize('16px');
     setConfigAnswerFontFamily('Inter');
+    setConfigQuestionPattern('none');
+    setConfigAnswerPattern('none');
     setIsCreatingSet(true);
     setEditingSetId(null);
     setIsModalOpen(true);
@@ -176,10 +188,12 @@ function App() {
       questionFgColor: configQuestionFgColor,
       questionFontSize: configQuestionFontSize,
       questionFontFamily: configQuestionFontFamily,
+      questionBackgroundPattern: configQuestionPattern,
       answerBgColor: configAnswerBgColor,
       answerFgColor: configAnswerFgColor,
       answerFontSize: configAnswerFontSize,
       answerFontFamily: configAnswerFontFamily,
+      answerBackgroundPattern: configAnswerPattern,
     };
 
     if (isCreatingSet) {
@@ -410,46 +424,16 @@ function App() {
                   <div className='space-y-4'>
                     {/* Colors */}
                     <div className='grid grid-cols-2 gap-3'>
-                      <div>
-                        <Label className='text-xs'>Background</Label>
-                        <div className='flex gap-1 mt-1'>
-                          <input
-                            type='color'
-                            value={configQuestionBgColor}
-                            onChange={(e) =>
-                              setConfigQuestionBgColor(e.target.value)
-                            }
-                            className='h-9 w-14 rounded border cursor-pointer'
-                          />
-                          <Input
-                            value={configQuestionBgColor}
-                            onChange={(e) =>
-                              setConfigQuestionBgColor(e.target.value)
-                            }
-                            className='flex-1'
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <Label className='text-xs'>Text Color</Label>
-                        <div className='flex gap-1 mt-1'>
-                          <input
-                            type='color'
-                            value={configQuestionFgColor}
-                            onChange={(e) =>
-                              setConfigQuestionFgColor(e.target.value)
-                            }
-                            className='h-9 w-14 rounded border cursor-pointer'
-                          />
-                          <Input
-                            value={configQuestionFgColor}
-                            onChange={(e) =>
-                              setConfigQuestionFgColor(e.target.value)
-                            }
-                            className='flex-1'
-                          />
-                        </div>
-                      </div>
+                      <DebouncedColorInput
+                        label='Background'
+                        value={configQuestionBgColor}
+                        onChange={setConfigQuestionBgColor}
+                      />
+                      <DebouncedColorInput
+                        label='Text Color'
+                        value={configQuestionFgColor}
+                        onChange={setConfigQuestionFgColor}
+                      />
                     </div>
 
                     {/* Typography */}
@@ -505,11 +489,21 @@ function App() {
                       </div>
                     </div>
 
+                    {/* Pattern Selection */}
+                    <PatternGallery
+                      label='Background Pattern'
+                      selectedPattern={configQuestionPattern}
+                      onSelectPattern={setConfigQuestionPattern}
+                      baseColor={configQuestionBgColor}
+                    />
+
                     {/* Preview */}
                     <div
                       className='rounded-lg border p-4 min-h-[100px] flex items-center justify-center'
                       style={{
-                        backgroundColor: configQuestionBgColor,
+                        ...(configQuestionPattern && configQuestionPattern !== 'none'
+                          ? getPatternById(configQuestionPattern)?.getCSS(configQuestionBgColor)
+                          : { backgroundColor: configQuestionBgColor }),
                         color: configQuestionFgColor,
                         fontFamily: configQuestionFontFamily,
                         fontSize: configQuestionFontSize,
@@ -537,46 +531,16 @@ function App() {
                   <div className='space-y-4'>
                     {/* Colors */}
                     <div className='grid grid-cols-2 gap-3'>
-                      <div>
-                        <Label className='text-xs'>Background</Label>
-                        <div className='flex gap-1 mt-1'>
-                          <input
-                            type='color'
-                            value={configAnswerBgColor}
-                            onChange={(e) =>
-                              setConfigAnswerBgColor(e.target.value)
-                            }
-                            className='h-9 w-14 rounded border cursor-pointer'
-                          />
-                          <Input
-                            value={configAnswerBgColor}
-                            onChange={(e) =>
-                              setConfigAnswerBgColor(e.target.value)
-                            }
-                            className='flex-1'
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <Label className='text-xs'>Text Color</Label>
-                        <div className='flex gap-1 mt-1'>
-                          <input
-                            type='color'
-                            value={configAnswerFgColor}
-                            onChange={(e) =>
-                              setConfigAnswerFgColor(e.target.value)
-                            }
-                            className='h-9 w-14 rounded border cursor-pointer'
-                          />
-                          <Input
-                            value={configAnswerFgColor}
-                            onChange={(e) =>
-                              setConfigAnswerFgColor(e.target.value)
-                            }
-                            className='flex-1'
-                          />
-                        </div>
-                      </div>
+                      <DebouncedColorInput
+                        label='Background'
+                        value={configAnswerBgColor}
+                        onChange={setConfigAnswerBgColor}
+                      />
+                      <DebouncedColorInput
+                        label='Text Color'
+                        value={configAnswerFgColor}
+                        onChange={setConfigAnswerFgColor}
+                      />
                     </div>
 
                     {/* Typography */}
@@ -632,11 +596,21 @@ function App() {
                       </div>
                     </div>
 
+                    {/* Pattern Selection */}
+                    <PatternGallery
+                      label='Background Pattern'
+                      selectedPattern={configAnswerPattern}
+                      onSelectPattern={setConfigAnswerPattern}
+                      baseColor={configAnswerBgColor}
+                    />
+
                     {/* Preview */}
                     <div
                       className='rounded-lg border p-4 min-h-[100px] flex items-center justify-center'
                       style={{
-                        backgroundColor: configAnswerBgColor,
+                        ...(configAnswerPattern && configAnswerPattern !== 'none'
+                          ? getPatternById(configAnswerPattern)?.getCSS(configAnswerBgColor)
+                          : { backgroundColor: configAnswerBgColor }),
                         color: configAnswerFgColor,
                         fontFamily: configAnswerFontFamily,
                         fontSize: configAnswerFontSize,

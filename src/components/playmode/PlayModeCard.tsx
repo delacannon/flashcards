@@ -1,4 +1,4 @@
-import React, { memo, useState } from 'react';
+import React, { memo } from 'react';
 import { FlashcardBase } from '@/components/flashcard/FlashcardBase';
 import { MarkdownRenderer } from '@/components/flashcard/MarkdownRenderer';
 import type { Flashcard, FlashcardStyles } from '@/types';

@@ -8,6 +8,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import { remarkHighlight } from '@/lib/remarkHighlight';
+import { getPatternById } from '@/lib/patterns';
 
 interface PlayModeProps {
   set: FlashcardSet;
@@ -191,8 +192,9 @@ export function PlayMode({ set, onExit }: PlayModeProps) {
                         <div
                           className='w-full h-full rounded-2xl border-2 shadow-xl flex items-center justify-center p-12'
                           style={{
-                            backgroundColor:
-                              set.config?.questionBgColor || '#ffffff',
+                            ...(set.config?.questionBackgroundPattern && set.config.questionBackgroundPattern !== 'none'
+                              ? getPatternById(set.config.questionBackgroundPattern)?.getCSS(set.config?.questionBgColor || '#ffffff')
+                              : { backgroundColor: set.config?.questionBgColor || '#ffffff' }),
                             color: set.config?.questionFgColor || '#000000',
                             fontFamily:
                               set.config?.questionFontFamily || 'Inter',
@@ -269,8 +271,9 @@ export function PlayMode({ set, onExit }: PlayModeProps) {
                         <div
                           className='w-full h-full rounded-2xl border-2 shadow-xl flex items-center justify-center p-12'
                           style={{
-                            backgroundColor:
-                              set.config?.answerBgColor || '#f3f4f6',
+                            ...(set.config?.answerBackgroundPattern && set.config.answerBackgroundPattern !== 'none'
+                              ? getPatternById(set.config.answerBackgroundPattern)?.getCSS(set.config?.answerBgColor || '#f3f4f6')
+                              : { backgroundColor: set.config?.answerBgColor || '#f3f4f6' }),
                             color: set.config?.answerFgColor || '#000000',
                             fontFamily: set.config?.answerFontFamily || 'Inter',
                             minHeight: '400px',

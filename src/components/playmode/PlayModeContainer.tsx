@@ -68,6 +68,7 @@ export const PlayModeContainer = memo(function PlayModeContainer({
     color: set.config.questionFgColor,
     fontSize: set.config.questionFontSize,
     fontFamily: set.config.questionFontFamily,
+    backgroundPattern: set.config.questionBackgroundPattern,
   };
 
   const answerStyles = {
@@ -75,6 +76,7 @@ export const PlayModeContainer = memo(function PlayModeContainer({
     color: set.config.answerFgColor,
     fontSize: set.config.answerFontSize,
     fontFamily: set.config.answerFontFamily,
+    backgroundPattern: set.config.answerBackgroundPattern,
   };
 
   return (

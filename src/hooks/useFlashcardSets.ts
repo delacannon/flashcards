@@ -52,10 +52,12 @@ export function useFlashcardSets() {
       questionFgColor: '#000000',
       questionFontSize: '16px',
       questionFontFamily: 'Inter',
+      questionBackgroundPattern: 'none',
       answerBgColor: '#f3f4f6',
       answerFgColor: '#000000',
       answerFontSize: '16px',
       answerFontFamily: 'Inter',
+      answerBackgroundPattern: 'none',
     };
     actions.createSet(name, defaultConfig);
   }, [actions]);
