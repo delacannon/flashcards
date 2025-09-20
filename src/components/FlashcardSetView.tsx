@@ -44,10 +44,12 @@ export interface FlashcardSetConfig {
   questionFgColor?: string;
   questionFontSize?: string;
   questionFontFamily?: string;
+  questionBackgroundPattern?: string;
   answerBgColor?: string;
   answerFgColor?: string;
   answerFontSize?: string;
   answerFontFamily?: string;
+  answerBackgroundPattern?: string;
   backgroundImage?: string;
 }
 
@@ -251,18 +253,23 @@ export function FlashcardSetView({
               Play
             </Button>
           )}
+
           <span className='text-sm text-muted-foreground'>
-            {set.config?.flipAxis === 'X' ? '↕️ Vertical' : '↔️ Horizontal'}{' '}
-            flip
-          </span>
-          <span className='text-sm text-muted-foreground'>
-            • {set.flashcards.length}{' '}
+            {set.flashcards.length}{' '}
             {set.flashcards.length === 1 ? 'card' : 'cards'}
           </span>
         </div>
       </div>
 
-      <div className='flex flex-1 flex-col gap-4 p-4'>
+      <div
+        className='flex flex-1 flex-col gap-4 p-4'
+        style={{
+          backgroundColor: '#fafafa',
+          backgroundImage:
+            'radial-gradient(circle, rgba(0,0,0,0.05) 1px, transparent 1px)',
+          backgroundSize: '20px 20px',
+        }}
+      >
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -286,10 +293,14 @@ export function FlashcardSetView({
                   questionFgColor={set.config?.questionFgColor}
                   questionFontSize={set.config?.questionFontSize}
                   questionFontFamily={set.config?.questionFontFamily}
+                  questionBackgroundPattern={
+                    set.config?.questionBackgroundPattern
+                  }
                   answerBgColor={set.config?.answerBgColor}
                   answerFgColor={set.config?.answerFgColor}
                   answerFontSize={set.config?.answerFontSize}
                   answerFontFamily={set.config?.answerFontFamily}
+                  answerBackgroundPattern={set.config?.answerBackgroundPattern}
                   onEdit={() => handleEditFlashcard(flashcard)}
                   onDelete={() => handleDeleteFlashcard(flashcard.id)}
                   onUpdateContent={handleUpdateFlashcardContent}
@@ -313,12 +324,12 @@ export function FlashcardSetView({
           </SortableContext>
           <DragOverlay>
             {activeFlashcard ? (
-              <div className="opacity-90 shadow-2xl rounded-xl">
-                <Card className="min-h-[200px] bg-background border-2">
-                  <CardContent className="p-6">
-                    <div className="text-center">
-                      <p className="font-medium mb-2">Question</p>
-                      <p className="text-sm">{activeFlashcard.question}</p>
+              <div className='opacity-90 shadow-2xl rounded-xl'>
+                <Card className='min-h-[200px] bg-background border-2'>
+                  <CardContent className='p-6'>
+                    <div className='text-center'>
+                      <p className='font-medium mb-2'>Question</p>
+                      <p className='text-sm'>{activeFlashcard.question}</p>
                     </div>
                   </CardContent>
                 </Card>
@@ -334,7 +345,7 @@ export function FlashcardSetView({
           if (!open) handleCancel();
         }}
       >
-        <DialogContent className='sm:max-w-[525px]'>
+        <DialogContent className='sm:max-w-[525px]' noOverlay>
           <DialogHeader>
             <DialogTitle>
               {isCreating ? 'Create New Flashcard' : 'Edit Flashcard'}
@@ -378,7 +389,7 @@ export function FlashcardSetView({
       </Dialog>
 
       <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-        <DialogContent>
+        <DialogContent noOverlay>
           <DialogHeader>
             <DialogTitle>Delete Flashcard</DialogTitle>
             <DialogDescription>

@@ -1,9 +1,11 @@
-import * as React from "react"
-import { Plus } from "lucide-react"
+import * as React from 'react';
+import { Plus, Home, Settings, Search, BookOpen } from 'lucide-react';
 
-import { Calendars } from "@/components/calendars"
-import { DatePicker } from "@/components/date-picker"
-import { NavUser } from "@/components/nav-user"
+import { NavUser } from '@/components/nav-user';
+import { StudyStats } from '@/components/sidebar/StudyStats';
+import { RecentSets } from '@/components/sidebar/RecentSets';
+import { StudyTools } from '@/components/sidebar/StudyTools';
+import { StudyProgress } from '@/components/sidebar/StudyProgress';
 import {
   Sidebar,
   SidebarContent,
@@ -14,53 +16,80 @@ import {
   SidebarMenuItem,
   SidebarRail,
   SidebarSeparator,
-} from "@/components/ui/sidebar"
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarGroupContent,
+} from '@/components/ui/sidebar';
+import { Input } from '@/components/ui/input';
+import { useFlashcardContext } from '@/contexts/FlashcardContext';
 
-// This is sample data.
-const data = {
+// This is sample data for the user
+const userData = {
   user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
+    name: 'Student',
+    email: 'student@flashcards.app',
+    avatar: '/avatars/shadcn.jpg',
   },
-  calendars: [
-    {
-      name: "My Calendars",
-      items: ["Personal", "Work", "Family"],
-    },
-    {
-      name: "Favorites",
-      items: ["Holidays", "Birthdays"],
-    },
-    {
-      name: "Other",
-      items: ["Travel", "Reminders", "Deadlines"],
-    },
-  ],
-}
+};
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { actions, selectedSet } = useFlashcardContext();
+  const [searchQuery, setSearchQuery] = React.useState('');
+
   return (
     <Sidebar {...props}>
-      <SidebarHeader className="border-sidebar-border h-16 border-b">
-        <NavUser user={data.user} />
+      <SidebarHeader className='border-sidebar-border h-16 border-b'>
+        <NavUser user={userData.user} />
       </SidebarHeader>
+
       <SidebarContent>
-        <DatePicker />
-        <SidebarSeparator className="mx-0" />
-        <Calendars calendars={data.calendars} />
+        {/* Search Bar */}
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <div className='px-2 py-2'>
+              <div className='relative'>
+                <Search className='absolute left-2 top-2.5 h-4 w-4 text-muted-foreground' />
+                <Input
+                  placeholder='Search cards...'
+                  className='pl-8'
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+            </div>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Navigation */}
+
+        <SidebarSeparator />
+
+        {/* Study Stats */}
+        <StudyStats />
+
+        <SidebarSeparator />
+
+        {/* Study Tools */}
+        <StudyTools />
+
+        <SidebarSeparator />
+
+        {/* Progress */}
+        <StudyProgress />
       </SidebarContent>
+
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton>
-              <Plus />
-              <span>New Calendar</span>
+              <Settings className='h-4 w-4' />
+              <span>Settings</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
+
       <SidebarRail />
     </Sidebar>
-  )
+  );
 }

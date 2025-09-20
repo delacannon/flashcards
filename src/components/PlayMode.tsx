@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { useSpring, animated, useTransition } from '@react-spring/web';
 import { cn } from '@/lib/utils';
@@ -8,6 +9,8 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import { remarkHighlight } from '@/lib/remarkHighlight';
+import { getPatternById } from '@/lib/patterns';
+import confetti from 'canvas-confetti';
 
 interface PlayModeProps {
   set: FlashcardSet;
@@ -18,10 +21,15 @@ export function PlayMode({ set, onExit }: PlayModeProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [direction, setDirection] = useState<'left' | 'right'>('right');
+  const [hasFlippedCurrentCard, setHasFlippedCurrentCard] = useState(false);
+  const [shouldShake, setShouldShake] = useState(false);
+  const [hasCompletedSet, setHasCompletedSet] = useState(false);
+  const [isFadingOut, setIsFadingOut] = useState(false);
 
   const currentCard = set.flashcards[currentIndex];
   const totalCards = set.flashcards.length;
   const flipAxis = set.config?.flipAxis || 'Y';
+  const progressPercentage = ((currentIndex + 1) / totalCards) * 100;
 
   const { transform, opacity } = useSpring({
     opacity: flipped ? 1 : 0,
@@ -61,6 +69,7 @@ export function PlayMode({ set, onExit }: PlayModeProps) {
     if (currentIndex > 0) {
       setDirection('left');
       setFlipped(false);
+      setHasFlippedCurrentCard(false);
       setTimeout(() => {
         setCurrentIndex(currentIndex - 1);
       }, 50);
@@ -69,17 +78,52 @@ export function PlayMode({ set, onExit }: PlayModeProps) {
 
   const navigateNext = useCallback(() => {
     if (currentIndex < totalCards - 1) {
+      if (!hasFlippedCurrentCard) {
+        setShouldShake(true);
+        setTimeout(() => setShouldShake(false), 500);
+        return;
+      }
       setDirection('right');
       setFlipped(false);
+      setHasFlippedCurrentCard(false);
       setTimeout(() => {
         setCurrentIndex(currentIndex + 1);
       }, 50);
     }
-  }, [currentIndex, totalCards]);
+  }, [currentIndex, totalCards, hasFlippedCurrentCard]);
 
   const toggleFlip = useCallback(() => {
     setFlipped(!flipped);
-  }, [flipped]);
+    if (!flipped) {
+      setHasFlippedCurrentCard(true);
+      
+      // Check if this is the last card and trigger confetti
+      if (currentIndex === totalCards - 1 && !hasCompletedSet) {
+        setHasCompletedSet(true);
+        
+        // Single confetti explosion
+        confetti({
+          particleCount: 150,
+          spread: 100,
+          origin: { x: 0.5, y: 0.5 },
+          colors: ['#14b8a6', '#0891b2', '#06b6d4', '#22d3ee', '#67e8f9'],
+          startVelocity: 45,
+          gravity: 0.8,
+          ticks: 100,
+          zIndex: 9999
+        });
+        
+        // Start fade out transition after 3 seconds
+        setTimeout(() => {
+          setIsFadingOut(true);
+          // Wait for fade animation to complete before exiting
+          setTimeout(() => {
+            onExit();
+          }, 500);
+        }, 3000);
+      }
+    }
+  }, [flipped, currentIndex, totalCards, hasCompletedSet, onExit]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -124,23 +168,30 @@ export function PlayMode({ set, onExit }: PlayModeProps) {
   }
 
   return (
-    <div className='fixed inset-0 bg-background z-50 flex flex-col'>
+    <div className={cn('fixed inset-0 bg-background z-50 flex flex-col', isFadingOut && 'fade-out')}>
       {/* Header */}
-      <div className='flex items-center justify-between p-4 border-b'>
-        <div className='flex items-center gap-4'>
-          <Button
-            onClick={onExit}
-            variant='ghost'
-            size='icon'
-            className='shrink-0'
-          >
-            <X className='h-5 w-5' />
-          </Button>
-          <h2 className='text-xl font-semibold'>{set.name}</h2>
+      <div className='flex flex-col'>
+        <div className='flex items-center justify-between p-4 border-b'>
+          <div className='flex items-center gap-4'>
+            <Button
+              onClick={onExit}
+              variant='ghost'
+              size='icon'
+              className='shrink-0'
+            >
+              <X className='h-5 w-5' />
+            </Button>
+            <h2 className='text-xl font-semibold'>{set.name}</h2>
+          </div>
+          <div className='text-sm text-muted-foreground'>
+            {currentIndex + 1} / {totalCards}
+          </div>
         </div>
-        <div className='text-sm text-muted-foreground'>
-          {currentIndex + 1} / {totalCards}
-        </div>
+        {/* Progress Bar */}
+        <Progress 
+          value={progressPercentage} 
+          className='h-2 w-full rounded-none bg-gray-200/50'
+        />
       </div>
 
       {/* Main Content Area */}
@@ -162,7 +213,7 @@ export function PlayMode({ set, onExit }: PlayModeProps) {
         </Button>
 
         {/* Card Display */}
-        <div className='w-full max-w-4xl mx-auto px-16'>
+        <div className={cn('w-full max-w-4xl mx-auto px-16', shouldShake && 'shake')}>
           <div className='relative w-full' style={{ minHeight: '400px' }}>
             {transitions((style, index) => {
               const card = set.flashcards[index];
@@ -191,8 +242,9 @@ export function PlayMode({ set, onExit }: PlayModeProps) {
                         <div
                           className='w-full h-full rounded-2xl border-2 shadow-xl flex items-center justify-center p-12'
                           style={{
-                            backgroundColor:
-                              set.config?.questionBgColor || '#ffffff',
+                            ...(set.config?.questionBackgroundPattern && set.config.questionBackgroundPattern !== 'none'
+                              ? getPatternById(set.config.questionBackgroundPattern)?.getCSS(set.config?.questionBgColor || '#ffffff')
+                              : { backgroundColor: set.config?.questionBgColor || '#ffffff' }),
                             color: set.config?.questionFgColor || '#000000',
                             fontFamily:
                               set.config?.questionFontFamily || 'Inter',
@@ -269,8 +321,9 @@ export function PlayMode({ set, onExit }: PlayModeProps) {
                         <div
                           className='w-full h-full rounded-2xl border-2 shadow-xl flex items-center justify-center p-12'
                           style={{
-                            backgroundColor:
-                              set.config?.answerBgColor || '#f3f4f6',
+                            ...(set.config?.answerBackgroundPattern && set.config.answerBackgroundPattern !== 'none'
+                              ? getPatternById(set.config.answerBackgroundPattern)?.getCSS(set.config?.answerBgColor || '#f3f4f6')
+                              : { backgroundColor: set.config?.answerBgColor || '#f3f4f6' }),
                             color: set.config?.answerFgColor || '#000000',
                             fontFamily: set.config?.answerFontFamily || 'Inter',
                             minHeight: '400px',
