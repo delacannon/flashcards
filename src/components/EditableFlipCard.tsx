@@ -36,6 +36,7 @@ interface EditableFlipCardProps {
   onDelete: () => void;
   onUpdateContent: (id: string, question: string, answer: string) => void;
   className?: string;
+  dragHandle?: React.ReactNode;
 }
 
 export function EditableFlipCard({
@@ -55,6 +56,7 @@ export function EditableFlipCard({
   onDelete,
   onUpdateContent,
   className,
+  dragHandle,
 }: EditableFlipCardProps) {
   const [flipped, setFlipped] = useState(false);
   const [isEditingQuestion, setIsEditingQuestion] = useState(false);
@@ -228,6 +230,12 @@ export function EditableFlipCard({
             fontFamily: questionFontFamily || undefined,
           }}
         >
+          {/* Drag Handle - only on front side */}
+          {dragHandle && (
+            <div className='absolute top-2 left-2 z-10'>
+              {dragHandle}
+            </div>
+          )}
           <div className='absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 z-10'>
             <Button
               size='icon'
@@ -330,6 +338,12 @@ export function EditableFlipCard({
             fontFamily: answerFontFamily || undefined,
           }}
         >
+          {/* Drag Handle - also on answer side */}
+          {dragHandle && (
+            <div className='absolute top-2 left-2 z-10'>
+              {dragHandle}
+            </div>
+          )}
           <div className='absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 z-10'>
             <Button
               size='icon'

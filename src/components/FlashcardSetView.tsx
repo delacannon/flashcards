@@ -1,4 +1,21 @@
 import { useState } from 'react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragOverlay,
+} from '@dnd-kit/core';
+import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
+import { restrictToWindowEdges } from '@dnd-kit/modifiers';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+} from '@dnd-kit/sortable';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -11,7 +28,7 @@ import {
 } from '@/components/ui/dialog';
 import { ArrowLeft, Plus, Play } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
-import { EditableFlipCard } from '@/components/EditableFlipCard';
+import { SortableFlipCard } from '@/components/SortableFlipCard';
 import { PlayMode } from '@/components/PlayMode';
 
 export interface Flashcard {
@@ -65,6 +82,43 @@ export function FlashcardSetView({
     null
   );
   const [isPlaying, setIsPlaying] = useState(false);
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = set.flashcards.findIndex((fc) => fc.id === active.id);
+      const newIndex = set.flashcards.findIndex((fc) => fc.id === over.id);
+
+      const newFlashcards = arrayMove(set.flashcards, oldIndex, newIndex);
+      const updatedSet = {
+        ...set,
+        flashcards: newFlashcards,
+      };
+      onUpdateSet(updatedSet);
+    }
+    setActiveId(null);
+  };
+
+  const activeFlashcard = activeId
+    ? set.flashcards.find((fc) => fc.id === activeId)
+    : null;
 
   const handleEditFlashcard = (flashcard: Flashcard) => {
     setSelectedFlashcard(flashcard);
@@ -174,7 +228,7 @@ export function FlashcardSetView({
   }
 
   return (
-    <div className='flex flex-1 flex-col gap-4'>
+    <div className='flex flex-1 flex-col gap-4 overflow-hidden'>
       <div className='flex items-center gap-4 px-4 pt-4'>
         <Button
           variant='ghost'
@@ -209,43 +263,69 @@ export function FlashcardSetView({
       </div>
 
       <div className='flex flex-1 flex-col gap-4 p-4'>
-        <div className='grid auto-rows-min gap-4 md:grid-cols-3 lg:grid-cols-4'>
-          {set.flashcards.map((flashcard) => (
-            <EditableFlipCard
-              key={flashcard.id}
-              id={flashcard.id}
-              question={flashcard.question}
-              answer={flashcard.answer}
-              flipAxis={set.config?.flipAxis || 'Y'}
-              questionBgColor={set.config?.questionBgColor}
-              questionFgColor={set.config?.questionFgColor}
-              questionFontSize={set.config?.questionFontSize}
-              questionFontFamily={set.config?.questionFontFamily}
-              answerBgColor={set.config?.answerBgColor}
-              answerFgColor={set.config?.answerFgColor}
-              answerFontSize={set.config?.answerFontSize}
-              answerFontFamily={set.config?.answerFontFamily}
-              onEdit={() => handleEditFlashcard(flashcard)}
-              onDelete={() => handleDeleteFlashcard(flashcard.id)}
-              onUpdateContent={handleUpdateFlashcardContent}
-              className='min-h-[200px]'
-            />
-          ))}
-
-          <Card
-            className='min-h-[200px] cursor-pointer hover:shadow-lg transition-shadow border-2 border-dashed border-muted-foreground/25 bg-transparent'
-            onClick={handleCreateFlashcard}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          modifiers={[restrictToWindowEdges]}
+        >
+          <SortableContext
+            items={set.flashcards.map((fc) => fc.id)}
+            strategy={rectSortingStrategy}
           >
-            <CardContent className='flex h-full min-h-[200px] items-center justify-center p-4'>
-              <div className='flex flex-col items-center gap-2'>
-                <div className='rounded-full bg-primary/10 p-3'>
-                  <Plus className='h-6 w-6 text-primary' />
-                </div>
-                <p className='text-sm text-muted-foreground'>Add Card</p>
+            <div className='grid auto-rows-min gap-4 md:grid-cols-3 lg:grid-cols-4'>
+              {set.flashcards.map((flashcard) => (
+                <SortableFlipCard
+                  key={flashcard.id}
+                  id={flashcard.id}
+                  question={flashcard.question}
+                  answer={flashcard.answer}
+                  flipAxis={set.config?.flipAxis || 'Y'}
+                  questionBgColor={set.config?.questionBgColor}
+                  questionFgColor={set.config?.questionFgColor}
+                  questionFontSize={set.config?.questionFontSize}
+                  questionFontFamily={set.config?.questionFontFamily}
+                  answerBgColor={set.config?.answerBgColor}
+                  answerFgColor={set.config?.answerFgColor}
+                  answerFontSize={set.config?.answerFontSize}
+                  answerFontFamily={set.config?.answerFontFamily}
+                  onEdit={() => handleEditFlashcard(flashcard)}
+                  onDelete={() => handleDeleteFlashcard(flashcard.id)}
+                  onUpdateContent={handleUpdateFlashcardContent}
+                />
+              ))}
+
+              <Card
+                className='min-h-[200px] cursor-pointer hover:shadow-lg transition-shadow border-2 border-dashed border-muted-foreground/25 bg-transparent'
+                onClick={handleCreateFlashcard}
+              >
+                <CardContent className='flex h-full min-h-[200px] items-center justify-center p-4'>
+                  <div className='flex flex-col items-center gap-2'>
+                    <div className='rounded-full bg-primary/10 p-3'>
+                      <Plus className='h-6 w-6 text-primary' />
+                    </div>
+                    <p className='text-sm text-muted-foreground'>Add Card</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </SortableContext>
+          <DragOverlay>
+            {activeFlashcard ? (
+              <div className="opacity-90 shadow-2xl rounded-xl">
+                <Card className="min-h-[200px] bg-background border-2">
+                  <CardContent className="p-6">
+                    <div className="text-center">
+                      <p className="font-medium mb-2">Question</p>
+                      <p className="text-sm">{activeFlashcard.question}</p>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       </div>
 
       <Dialog
