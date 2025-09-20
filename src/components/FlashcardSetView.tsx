@@ -7,10 +7,12 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog';
-import { ArrowLeft, Plus } from 'lucide-react';
+import { ArrowLeft, Plus, Play } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
-import { FlipCard } from '@/components/FlipCard';
+import { EditableFlipCard } from '@/components/EditableFlipCard';
+import { PlayMode } from '@/components/PlayMode';
 
 export interface Flashcard {
   id: string;
@@ -46,12 +48,23 @@ interface FlashcardSetViewProps {
   onUpdateSet: (updatedSet: FlashcardSet) => void;
 }
 
-export function FlashcardSetView({ set, onBack, onUpdateSet }: FlashcardSetViewProps) {
-  const [selectedFlashcard, setSelectedFlashcard] = useState<Flashcard | null>(null);
+export function FlashcardSetView({
+  set,
+  onBack,
+  onUpdateSet,
+}: FlashcardSetViewProps) {
+  const [selectedFlashcard, setSelectedFlashcard] = useState<Flashcard | null>(
+    null
+  );
   const [isEditing, setIsEditing] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState('');
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [flashcardToDelete, setFlashcardToDelete] = useState<Flashcard | null>(
+    null
+  );
+  const [isPlaying, setIsPlaying] = useState(false);
 
   const handleEditFlashcard = (flashcard: Flashcard) => {
     setSelectedFlashcard(flashcard);
@@ -64,6 +77,16 @@ export function FlashcardSetView({ set, onBack, onUpdateSet }: FlashcardSetViewP
     setQuestion('');
     setAnswer('');
     setIsCreating(true);
+  };
+
+  const handlePlayMode = () => {
+    if (set.flashcards.length > 0) {
+      setIsPlaying(true);
+    }
+  };
+
+  const handleExitPlay = () => {
+    setIsPlaying(false);
   };
 
   const handleSaveFlashcard = () => {
@@ -80,10 +103,8 @@ export function FlashcardSetView({ set, onBack, onUpdateSet }: FlashcardSetViewP
       onUpdateSet(updatedSet);
       setIsCreating(false);
     } else if (isEditing && selectedFlashcard) {
-      const updatedFlashcards = set.flashcards.map(fc =>
-        fc.id === selectedFlashcard.id
-          ? { ...fc, question, answer }
-          : fc
+      const updatedFlashcards = set.flashcards.map((fc) =>
+        fc.id === selectedFlashcard.id ? { ...fc, question, answer } : fc
       );
       const updatedSet = {
         ...set,
@@ -97,13 +118,47 @@ export function FlashcardSetView({ set, onBack, onUpdateSet }: FlashcardSetViewP
     setSelectedFlashcard(null);
   };
 
-  const handleDeleteFlashcard = (flashcardId: string) => {
-    const updatedFlashcards = set.flashcards.filter(fc => fc.id !== flashcardId);
+  const handleUpdateFlashcardContent = (
+    id: string,
+    newQuestion: string,
+    newAnswer: string
+  ) => {
+    const updatedFlashcards = set.flashcards.map((fc) =>
+      fc.id === id ? { ...fc, question: newQuestion, answer: newAnswer } : fc
+    );
     const updatedSet = {
       ...set,
       flashcards: updatedFlashcards,
     };
     onUpdateSet(updatedSet);
+  };
+
+  const handleDeleteFlashcard = (flashcardId: string) => {
+    const flashcard = set.flashcards.find((fc) => fc.id === flashcardId);
+    if (flashcard) {
+      setFlashcardToDelete(flashcard);
+      setDeleteConfirmOpen(true);
+    }
+  };
+
+  const confirmDeleteFlashcard = () => {
+    if (flashcardToDelete) {
+      const updatedFlashcards = set.flashcards.filter(
+        (fc) => fc.id !== flashcardToDelete.id
+      );
+      const updatedSet = {
+        ...set,
+        flashcards: updatedFlashcards,
+      };
+      onUpdateSet(updatedSet);
+    }
+    setDeleteConfirmOpen(false);
+    setFlashcardToDelete(null);
+  };
+
+  const cancelDeleteFlashcard = () => {
+    setDeleteConfirmOpen(false);
+    setFlashcardToDelete(null);
   };
 
   const handleCancel = () => {
@@ -113,6 +168,10 @@ export function FlashcardSetView({ set, onBack, onUpdateSet }: FlashcardSetViewP
     setAnswer('');
     setSelectedFlashcard(null);
   };
+
+  if (isPlaying) {
+    return <PlayMode set={set} onExit={handleExitPlay} />;
+  }
 
   return (
     <div className='flex flex-1 flex-col gap-4'>
@@ -127,11 +186,24 @@ export function FlashcardSetView({ set, onBack, onUpdateSet }: FlashcardSetViewP
         </Button>
         <h1 className='text-2xl font-bold flex-1'>{set.name}</h1>
         <div className='flex items-center gap-3'>
+          {set.flashcards.length > 0 && (
+            <Button
+              variant='outline'
+              size='sm'
+              onClick={handlePlayMode}
+              className='flex items-center gap-2'
+            >
+              <Play className='h-4 w-4' />
+              Play
+            </Button>
+          )}
           <span className='text-sm text-muted-foreground'>
-            {set.config?.flipAxis === 'X' ? '↕️ Vertical' : '↔️ Horizontal'} flip
+            {set.config?.flipAxis === 'X' ? '↕️ Vertical' : '↔️ Horizontal'}{' '}
+            flip
           </span>
           <span className='text-sm text-muted-foreground'>
-            • {set.flashcards.length} {set.flashcards.length === 1 ? 'card' : 'cards'}
+            • {set.flashcards.length}{' '}
+            {set.flashcards.length === 1 ? 'card' : 'cards'}
           </span>
         </div>
       </div>
@@ -139,8 +211,9 @@ export function FlashcardSetView({ set, onBack, onUpdateSet }: FlashcardSetViewP
       <div className='flex flex-1 flex-col gap-4 p-4'>
         <div className='grid auto-rows-min gap-4 md:grid-cols-3 lg:grid-cols-4'>
           {set.flashcards.map((flashcard) => (
-            <FlipCard
+            <EditableFlipCard
               key={flashcard.id}
+              id={flashcard.id}
               question={flashcard.question}
               answer={flashcard.answer}
               flipAxis={set.config?.flipAxis || 'Y'}
@@ -154,10 +227,11 @@ export function FlashcardSetView({ set, onBack, onUpdateSet }: FlashcardSetViewP
               answerFontFamily={set.config?.answerFontFamily}
               onEdit={() => handleEditFlashcard(flashcard)}
               onDelete={() => handleDeleteFlashcard(flashcard.id)}
+              onUpdateContent={handleUpdateFlashcardContent}
               className='min-h-[200px]'
             />
           ))}
-          
+
           <Card
             className='min-h-[200px] cursor-pointer hover:shadow-lg transition-shadow border-2 border-dashed border-muted-foreground/25 bg-transparent'
             onClick={handleCreateFlashcard}
@@ -174,9 +248,12 @@ export function FlashcardSetView({ set, onBack, onUpdateSet }: FlashcardSetViewP
         </div>
       </div>
 
-      <Dialog open={isEditing || isCreating} onOpenChange={(open) => {
-        if (!open) handleCancel();
-      }}>
+      <Dialog
+        open={isEditing || isCreating}
+        onOpenChange={(open) => {
+          if (!open) handleCancel();
+        }}
+      >
         <DialogContent className='sm:max-w-[525px]'>
           <DialogHeader>
             <DialogTitle>
@@ -215,6 +292,41 @@ export function FlashcardSetView({ set, onBack, onUpdateSet }: FlashcardSetViewP
             </Button>
             <Button onClick={handleSaveFlashcard}>
               {isCreating ? 'Create' : 'Save'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Flashcard</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this flashcard?
+            </DialogDescription>
+          </DialogHeader>
+          {flashcardToDelete && (
+            <div className='space-y-2 py-2'>
+              <div className='rounded-lg border bg-muted/50 p-3'>
+                <p className='text-sm font-medium text-muted-foreground mb-1'>
+                  Question:
+                </p>
+                <p className='text-sm'>{flashcardToDelete.question}</p>
+              </div>
+              <div className='rounded-lg border bg-muted/50 p-3'>
+                <p className='text-sm font-medium text-muted-foreground mb-1'>
+                  Answer:
+                </p>
+                <p className='text-sm'>{flashcardToDelete.answer}</p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant='outline' onClick={cancelDeleteFlashcard}>
+              Cancel
+            </Button>
+            <Button variant='destructive' onClick={confirmDeleteFlashcard}>
+              Delete
             </Button>
           </DialogFooter>
         </DialogContent>

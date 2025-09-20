@@ -3,6 +3,10 @@ import { useSpring, animated } from '@react-spring/web';
 import { Button } from '@/components/ui/button';
 import { Edit2, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
+import { remarkHighlight } from '@/lib/remarkHighlight';
 
 interface FlipCardProps {
   question: string;
@@ -93,9 +97,34 @@ export function FlipCard({
             </Button>
           </div>
           <div className='flex h-full min-h-[200px] items-center justify-center p-6'>
-            <div className='text-center'>
+            <div className='text-center w-full'>
               <p className='text-xs opacity-70 mb-2'>Question</p>
-              <p className='font-medium' style={{ fontSize: questionFontSize || '14px' }}>{question || 'No question yet'}</p>
+              <div 
+                className='font-medium prose prose-sm max-w-none' 
+                style={{ 
+                  fontSize: questionFontSize || '14px',
+                  fontFamily: questionFontFamily || 'inherit',
+                  color: questionFgColor || 'inherit'
+                }}
+              >
+                {question ? (
+                  <ReactMarkdown 
+                    remarkPlugins={[remarkGfm, remarkHighlight]}
+                    rehypePlugins={[rehypeRaw]}
+                    components={{
+                      p: ({ children }) => <p className="m-0" style={{ fontFamily: 'inherit' }}>{children}</p>,
+                      mark: ({ children }) => <mark className="bg-yellow-200 px-1 rounded">{children}</mark>,
+                      strong: ({ children }) => <strong className="font-bold">{children}</strong>,
+                      em: ({ children }) => <em className="italic">{children}</em>,
+                      code: ({ children }) => <code className="bg-gray-100 px-1 rounded">{children}</code>,
+                    }}
+                  >
+                    {question}
+                  </ReactMarkdown>
+                ) : (
+                  <p className="m-0 opacity-50">No question yet</p>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -144,9 +173,34 @@ export function FlipCard({
             </Button>
           </div>
           <div className='flex h-full min-h-[200px] items-center justify-center p-6'>
-            <div className='text-center'>
+            <div className='text-center w-full'>
               <p className='text-xs opacity-70 mb-2'>Answer</p>
-              <p style={{ fontSize: answerFontSize || '14px' }}>{answer || 'No answer yet'}</p>
+              <div 
+                className='prose prose-sm max-w-none' 
+                style={{ 
+                  fontSize: answerFontSize || '14px',
+                  fontFamily: answerFontFamily || 'inherit',
+                  color: answerFgColor || 'inherit'
+                }}
+              >
+                {answer ? (
+                  <ReactMarkdown 
+                    remarkPlugins={[remarkGfm, remarkHighlight]}
+                    rehypePlugins={[rehypeRaw]}
+                    components={{
+                      p: ({ children }) => <p className="m-0" style={{ fontFamily: 'inherit' }}>{children}</p>,
+                      mark: ({ children }) => <mark className="bg-yellow-200 px-1 rounded">{children}</mark>,
+                      strong: ({ children }) => <strong className="font-bold">{children}</strong>,
+                      em: ({ children }) => <em className="italic">{children}</em>,
+                      code: ({ children }) => <code className="bg-gray-100 px-1 rounded">{children}</code>,
+                    }}
+                  >
+                    {answer}
+                  </ReactMarkdown>
+                ) : (
+                  <p className="m-0 opacity-50">No answer yet</p>
+                )}
+              </div>
             </div>
           </div>
         </div>

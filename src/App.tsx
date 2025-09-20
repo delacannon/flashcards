@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import { AppSidebar } from '@/components/app-sidebar';
 import {
   Breadcrumb,
@@ -19,11 +20,17 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit2, Trash2, ArrowLeftRight, ArrowUpDown, Type } from 'lucide-react';
-import { FlashcardSetView, type FlashcardSet, type FlashcardSetConfig } from '@/components/FlashcardSetView';
+import { Plus, Edit2, Trash2, Copy, ArrowLeftRight, ArrowUpDown, Play } from 'lucide-react';
+import {
+  FlashcardSetView,
+  type FlashcardSet,
+  type FlashcardSetConfig,
+} from '@/components/FlashcardSetView';
+import { PlayMode } from '@/components/PlayMode';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
@@ -36,17 +43,18 @@ import {
 } from '@/components/ui/select';
 
 function App() {
+  const [playingSet, setPlayingSet] = useState<FlashcardSet | null>(null);
   const [flashcardSets, setFlashcardSets] = useState<FlashcardSet[]>([
     {
-      id: '1',
+      id: uuidv4(),
       name: 'My First Set',
       flashcards: [],
       config: {
         flipAxis: 'Y',
-        cardTheme: 'default'
+        cardTheme: 'default',
       },
       createdAt: new Date(),
-    }
+    },
   ]);
   const [selectedSet, setSelectedSet] = useState<FlashcardSet | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -54,22 +62,43 @@ function App() {
   const [editingSetId, setEditingSetId] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState('');
   const [configFlipAxis, setConfigFlipAxis] = useState<'X' | 'Y'>('Y');
-  const [configQuestionBgColor, setConfigQuestionBgColor] = useState<string>('#ffffff');
-  const [configQuestionFgColor, setConfigQuestionFgColor] = useState<string>('#000000');
-  const [configQuestionFontSize, setConfigQuestionFontSize] = useState<string>('16px');
-  const [configQuestionFontFamily, setConfigQuestionFontFamily] = useState<string>('Inter');
-  const [configAnswerBgColor, setConfigAnswerBgColor] = useState<string>('#f3f4f6');
-  const [configAnswerFgColor, setConfigAnswerFgColor] = useState<string>('#000000');
-  const [configAnswerFontSize, setConfigAnswerFontSize] = useState<string>('16px');
-  const [configAnswerFontFamily, setConfigAnswerFontFamily] = useState<string>('Inter');
+  const [configQuestionBgColor, setConfigQuestionBgColor] =
+    useState<string>('#ffffff');
+  const [configQuestionFgColor, setConfigQuestionFgColor] =
+    useState<string>('#000000');
+  const [configQuestionFontSize, setConfigQuestionFontSize] =
+    useState<string>('16px');
+  const [configQuestionFontFamily, setConfigQuestionFontFamily] =
+    useState<string>('Inter');
+  const [configAnswerBgColor, setConfigAnswerBgColor] =
+    useState<string>('#f3f4f6');
+  const [configAnswerFgColor, setConfigAnswerFgColor] =
+    useState<string>('#000000');
+  const [configAnswerFontSize, setConfigAnswerFontSize] =
+    useState<string>('16px');
+  const [configAnswerFontFamily, setConfigAnswerFontFamily] =
+    useState<string>('Inter');
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [setToDelete, setSetToDelete] = useState<string | null>(null);
 
   const handleSetClick = (set: FlashcardSet) => {
     setSelectedSet(set);
   };
 
+  const handlePlaySet = (e: React.MouseEvent, set: FlashcardSet) => {
+    e.stopPropagation();
+    if (set.flashcards.length > 0) {
+      setPlayingSet(set);
+    }
+  };
+
+  const handleExitPlay = () => {
+    setPlayingSet(null);
+  };
+
   const handleEditSetName = (e: React.MouseEvent, setId: string) => {
     e.stopPropagation();
-    const set = flashcardSets.find(s => s.id === setId);
+    const set = flashcardSets.find((s) => s.id === setId);
     if (set) {
       setEditingSetId(setId);
       setInputValue(set.name);
@@ -89,7 +118,38 @@ function App() {
 
   const handleDeleteSet = (e: React.MouseEvent, setId: string) => {
     e.stopPropagation();
-    setFlashcardSets(flashcardSets.filter(s => s.id !== setId));
+    setSetToDelete(setId);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDeleteSet = () => {
+    if (setToDelete) {
+      setFlashcardSets(flashcardSets.filter((s) => s.id !== setToDelete));
+      if (selectedSet?.id === setToDelete) {
+        setSelectedSet(null);
+      }
+    }
+    setDeleteConfirmOpen(false);
+    setSetToDelete(null);
+  };
+
+  const cancelDeleteSet = () => {
+    setDeleteConfirmOpen(false);
+    setSetToDelete(null);
+  };
+
+  const handleDuplicateSet = (e: React.MouseEvent, setId: string) => {
+    e.stopPropagation();
+    const setToDuplicate = flashcardSets.find((s) => s.id === setId);
+    if (setToDuplicate) {
+      const duplicatedSet: FlashcardSet = {
+        ...setToDuplicate,
+        id: uuidv4(),
+        name: `${setToDuplicate.name} (Copy)`,
+        createdAt: new Date(),
+      };
+      setFlashcardSets([...flashcardSets, duplicatedSet]);
+    }
   };
 
   const handleAddSet = () => {
@@ -119,12 +179,12 @@ function App() {
       answerBgColor: configAnswerBgColor,
       answerFgColor: configAnswerFgColor,
       answerFontSize: configAnswerFontSize,
-      answerFontFamily: configAnswerFontFamily
+      answerFontFamily: configAnswerFontFamily,
     };
 
     if (isCreatingSet) {
       const newSet: FlashcardSet = {
-        id: Date.now().toString(),
+        id: uuidv4(),
         name: inputValue || 'Untitled Set',
         flashcards: [],
         config,
@@ -132,11 +192,11 @@ function App() {
       };
       setFlashcardSets([...flashcardSets, newSet]);
     } else if (editingSetId) {
-      setFlashcardSets(flashcardSets.map(set =>
-        set.id === editingSetId
-          ? { ...set, name: inputValue, config }
-          : set
-      ));
+      setFlashcardSets(
+        flashcardSets.map((set) =>
+          set.id === editingSetId ? { ...set, name: inputValue, config } : set
+        )
+      );
     }
     setIsModalOpen(false);
     setInputValue('');
@@ -152,15 +212,19 @@ function App() {
   };
 
   const handleUpdateSet = (updatedSet: FlashcardSet) => {
-    setFlashcardSets(flashcardSets.map(set =>
-      set.id === updatedSet.id ? updatedSet : set
-    ));
+    setFlashcardSets(
+      flashcardSets.map((set) => (set.id === updatedSet.id ? updatedSet : set))
+    );
     setSelectedSet(updatedSet);
   };
 
   const handleBackToSets = () => {
     setSelectedSet(null);
   };
+
+  if (playingSet) {
+    return <PlayMode set={playingSet} onExit={handleExitPlay} />;
+  }
 
   return (
     <SidebarProvider>
@@ -194,7 +258,8 @@ function App() {
             <div className='flex justify-between items-center mb-4'>
               <h1 className='text-2xl font-bold'>My Flashcard Sets</h1>
               <span className='text-sm text-muted-foreground'>
-                {flashcardSets.length} {flashcardSets.length === 1 ? 'set' : 'sets'}
+                {flashcardSets.length}{' '}
+                {flashcardSets.length === 1 ? 'set' : 'sets'}
               </span>
             </div>
             <div className='grid auto-rows-min gap-4 md:grid-cols-3 lg:grid-cols-4'>
@@ -205,6 +270,16 @@ function App() {
                   onClick={() => handleSetClick(set)}
                 >
                   <div className='absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 z-10'>
+                    {set.flashcards.length > 0 && (
+                      <Button
+                        size='icon'
+                        variant='ghost'
+                        className='h-8 w-8'
+                        onClick={(e) => handlePlaySet(e, set)}
+                      >
+                        <Play className='h-4 w-4' />
+                      </Button>
+                    )}
                     <Button
                       size='icon'
                       variant='ghost'
@@ -212,6 +287,14 @@ function App() {
                       onClick={(e) => handleEditSetName(e, set.id)}
                     >
                       <Edit2 className='h-4 w-4' />
+                    </Button>
+                    <Button
+                      size='icon'
+                      variant='ghost'
+                      className='h-8 w-8'
+                      onClick={(e) => handleDuplicateSet(e, set.id)}
+                    >
+                      <Copy className='h-4 w-4' />
                     </Button>
                     <Button
                       size='icon'
@@ -227,7 +310,8 @@ function App() {
                   </CardHeader>
                   <CardContent>
                     <p className='text-sm text-muted-foreground'>
-                      {set.flashcards.length} {set.flashcards.length === 1 ? 'card' : 'cards'}
+                      {set.flashcards.length}{' '}
+                      {set.flashcards.length === 1 ? 'card' : 'cards'}
                     </p>
                     <p className='text-xs text-muted-foreground mt-2'>
                       Created {set.createdAt.toLocaleDateString()}
@@ -253,7 +337,7 @@ function App() {
         )}
 
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <DialogContent 
+          <DialogContent
             className='max-w-5xl h-[90vh] overflow-y-auto'
             noOverlay
           >
@@ -265,7 +349,9 @@ function App() {
             <div className='grid gap-6 py-4'>
               {/* Name Input */}
               <div>
-                <Label htmlFor='name' className='text-base font-semibold'>Set Name</Label>
+                <Label htmlFor='name' className='text-base font-semibold'>
+                  Set Name
+                </Label>
                 <Input
                   id='name'
                   placeholder='Enter flashcard set name...'
@@ -281,16 +367,28 @@ function App() {
                 <div className='flex items-center justify-between'>
                   <Label htmlFor='flip-axis'>Direction</Label>
                   <div className='flex items-center gap-3'>
-                    <span className={cn('text-sm', configFlipAxis === 'Y' && 'font-medium')}>
+                    <span
+                      className={cn(
+                        'text-sm',
+                        configFlipAxis === 'Y' && 'font-medium'
+                      )}
+                    >
                       <ArrowLeftRight className='h-4 w-4 inline mr-1' />
                       Horizontal
                     </span>
                     <Switch
                       id='flip-axis'
                       checked={configFlipAxis === 'X'}
-                      onCheckedChange={(checked) => setConfigFlipAxis(checked ? 'X' : 'Y')}
+                      onCheckedChange={(checked) =>
+                        setConfigFlipAxis(checked ? 'X' : 'Y')
+                      }
                     />
-                    <span className={cn('text-sm', configFlipAxis === 'X' && 'font-medium')}>
+                    <span
+                      className={cn(
+                        'text-sm',
+                        configFlipAxis === 'X' && 'font-medium'
+                      )}
+                    >
                       <ArrowUpDown className='h-4 w-4 inline mr-1' />
                       Vertical
                     </span>
@@ -303,10 +401,12 @@ function App() {
                 {/* Question Side Configuration */}
                 <div className='border rounded-lg p-4'>
                   <h4 className='text-sm font-semibold mb-4 flex items-center gap-2'>
-                    <span className='bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs'>Q</span>
+                    <span className='bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs'>
+                      Q
+                    </span>
                     Question Side
                   </h4>
-                  
+
                   <div className='space-y-4'>
                     {/* Colors */}
                     <div className='grid grid-cols-2 gap-3'>
@@ -316,12 +416,16 @@ function App() {
                           <input
                             type='color'
                             value={configQuestionBgColor}
-                            onChange={(e) => setConfigQuestionBgColor(e.target.value)}
+                            onChange={(e) =>
+                              setConfigQuestionBgColor(e.target.value)
+                            }
                             className='h-9 w-14 rounded border cursor-pointer'
                           />
                           <Input
                             value={configQuestionBgColor}
-                            onChange={(e) => setConfigQuestionBgColor(e.target.value)}
+                            onChange={(e) =>
+                              setConfigQuestionBgColor(e.target.value)
+                            }
                             className='flex-1'
                           />
                         </div>
@@ -332,12 +436,16 @@ function App() {
                           <input
                             type='color'
                             value={configQuestionFgColor}
-                            onChange={(e) => setConfigQuestionFgColor(e.target.value)}
+                            onChange={(e) =>
+                              setConfigQuestionFgColor(e.target.value)
+                            }
                             className='h-9 w-14 rounded border cursor-pointer'
                           />
                           <Input
                             value={configQuestionFgColor}
-                            onChange={(e) => setConfigQuestionFgColor(e.target.value)}
+                            onChange={(e) =>
+                              setConfigQuestionFgColor(e.target.value)
+                            }
                             className='flex-1'
                           />
                         </div>
@@ -348,7 +456,10 @@ function App() {
                     <div className='space-y-3'>
                       <div>
                         <Label className='text-xs'>Font Family</Label>
-                        <Select value={configQuestionFontFamily} onValueChange={setConfigQuestionFontFamily}>
+                        <Select
+                          value={configQuestionFontFamily}
+                          onValueChange={setConfigQuestionFontFamily}
+                        >
                           <SelectTrigger className='mt-1'>
                             <SelectValue />
                           </SelectTrigger>
@@ -357,17 +468,26 @@ function App() {
                             <SelectItem value='Roboto'>Roboto</SelectItem>
                             <SelectItem value='Open Sans'>Open Sans</SelectItem>
                             <SelectItem value='Poppins'>Poppins</SelectItem>
-                            <SelectItem value='Montserrat'>Montserrat</SelectItem>
+                            <SelectItem value='Montserrat'>
+                              Montserrat
+                            </SelectItem>
                             <SelectItem value='Lato'>Lato</SelectItem>
                             <SelectItem value='Raleway'>Raleway</SelectItem>
-                            <SelectItem value='Playfair Display'>Playfair Display</SelectItem>
-                            <SelectItem value='Merriweather'>Merriweather</SelectItem>
+                            <SelectItem value='Playfair Display'>
+                              Playfair Display
+                            </SelectItem>
+                            <SelectItem value='Merriweather'>
+                              Merriweather
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                       <div>
                         <Label className='text-xs'>Font Size</Label>
-                        <Select value={configQuestionFontSize} onValueChange={setConfigQuestionFontSize}>
+                        <Select
+                          value={configQuestionFontSize}
+                          onValueChange={setConfigQuestionFontSize}
+                        >
                           <SelectTrigger className='mt-1'>
                             <SelectValue />
                           </SelectTrigger>
@@ -376,7 +496,9 @@ function App() {
                             <SelectItem value='14px'>Normal (14px)</SelectItem>
                             <SelectItem value='16px'>Medium (16px)</SelectItem>
                             <SelectItem value='18px'>Large (18px)</SelectItem>
-                            <SelectItem value='20px'>Extra Large (20px)</SelectItem>
+                            <SelectItem value='20px'>
+                              Extra Large (20px)
+                            </SelectItem>
                             <SelectItem value='24px'>Huge (24px)</SelectItem>
                           </SelectContent>
                         </Select>
@@ -384,17 +506,19 @@ function App() {
                     </div>
 
                     {/* Preview */}
-                    <div 
+                    <div
                       className='rounded-lg border p-4 min-h-[100px] flex items-center justify-center'
-                      style={{ 
-                        backgroundColor: configQuestionBgColor, 
+                      style={{
+                        backgroundColor: configQuestionBgColor,
                         color: configQuestionFgColor,
                         fontFamily: configQuestionFontFamily,
-                        fontSize: configQuestionFontSize
+                        fontSize: configQuestionFontSize,
                       }}
                     >
                       <div className='text-center'>
-                        <p className='opacity-70 text-xs mb-1'>Question Preview</p>
+                        <p className='opacity-70 text-xs mb-1'>
+                          Question Preview
+                        </p>
                         <p>Sample Question Text</p>
                       </div>
                     </div>
@@ -404,10 +528,12 @@ function App() {
                 {/* Answer Side Configuration */}
                 <div className='border rounded-lg p-4'>
                   <h4 className='text-sm font-semibold mb-4 flex items-center gap-2'>
-                    <span className='bg-green-100 text-green-700 px-2 py-1 rounded text-xs'>A</span>
+                    <span className='bg-green-100 text-green-700 px-2 py-1 rounded text-xs'>
+                      A
+                    </span>
                     Answer Side
                   </h4>
-                  
+
                   <div className='space-y-4'>
                     {/* Colors */}
                     <div className='grid grid-cols-2 gap-3'>
@@ -417,12 +543,16 @@ function App() {
                           <input
                             type='color'
                             value={configAnswerBgColor}
-                            onChange={(e) => setConfigAnswerBgColor(e.target.value)}
+                            onChange={(e) =>
+                              setConfigAnswerBgColor(e.target.value)
+                            }
                             className='h-9 w-14 rounded border cursor-pointer'
                           />
                           <Input
                             value={configAnswerBgColor}
-                            onChange={(e) => setConfigAnswerBgColor(e.target.value)}
+                            onChange={(e) =>
+                              setConfigAnswerBgColor(e.target.value)
+                            }
                             className='flex-1'
                           />
                         </div>
@@ -433,12 +563,16 @@ function App() {
                           <input
                             type='color'
                             value={configAnswerFgColor}
-                            onChange={(e) => setConfigAnswerFgColor(e.target.value)}
+                            onChange={(e) =>
+                              setConfigAnswerFgColor(e.target.value)
+                            }
                             className='h-9 w-14 rounded border cursor-pointer'
                           />
                           <Input
                             value={configAnswerFgColor}
-                            onChange={(e) => setConfigAnswerFgColor(e.target.value)}
+                            onChange={(e) =>
+                              setConfigAnswerFgColor(e.target.value)
+                            }
                             className='flex-1'
                           />
                         </div>
@@ -449,7 +583,10 @@ function App() {
                     <div className='space-y-3'>
                       <div>
                         <Label className='text-xs'>Font Family</Label>
-                        <Select value={configAnswerFontFamily} onValueChange={setConfigAnswerFontFamily}>
+                        <Select
+                          value={configAnswerFontFamily}
+                          onValueChange={setConfigAnswerFontFamily}
+                        >
                           <SelectTrigger className='mt-1'>
                             <SelectValue />
                           </SelectTrigger>
@@ -458,17 +595,26 @@ function App() {
                             <SelectItem value='Roboto'>Roboto</SelectItem>
                             <SelectItem value='Open Sans'>Open Sans</SelectItem>
                             <SelectItem value='Poppins'>Poppins</SelectItem>
-                            <SelectItem value='Montserrat'>Montserrat</SelectItem>
+                            <SelectItem value='Montserrat'>
+                              Montserrat
+                            </SelectItem>
                             <SelectItem value='Lato'>Lato</SelectItem>
                             <SelectItem value='Raleway'>Raleway</SelectItem>
-                            <SelectItem value='Playfair Display'>Playfair Display</SelectItem>
-                            <SelectItem value='Merriweather'>Merriweather</SelectItem>
+                            <SelectItem value='Playfair Display'>
+                              Playfair Display
+                            </SelectItem>
+                            <SelectItem value='Merriweather'>
+                              Merriweather
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                       <div>
                         <Label className='text-xs'>Font Size</Label>
-                        <Select value={configAnswerFontSize} onValueChange={setConfigAnswerFontSize}>
+                        <Select
+                          value={configAnswerFontSize}
+                          onValueChange={setConfigAnswerFontSize}
+                        >
                           <SelectTrigger className='mt-1'>
                             <SelectValue />
                           </SelectTrigger>
@@ -477,7 +623,9 @@ function App() {
                             <SelectItem value='14px'>Normal (14px)</SelectItem>
                             <SelectItem value='16px'>Medium (16px)</SelectItem>
                             <SelectItem value='18px'>Large (18px)</SelectItem>
-                            <SelectItem value='20px'>Extra Large (20px)</SelectItem>
+                            <SelectItem value='20px'>
+                              Extra Large (20px)
+                            </SelectItem>
                             <SelectItem value='24px'>Huge (24px)</SelectItem>
                           </SelectContent>
                         </Select>
@@ -485,17 +633,19 @@ function App() {
                     </div>
 
                     {/* Preview */}
-                    <div 
+                    <div
                       className='rounded-lg border p-4 min-h-[100px] flex items-center justify-center'
-                      style={{ 
-                        backgroundColor: configAnswerBgColor, 
+                      style={{
+                        backgroundColor: configAnswerBgColor,
                         color: configAnswerFgColor,
                         fontFamily: configAnswerFontFamily,
-                        fontSize: configAnswerFontSize
+                        fontSize: configAnswerFontSize,
                       }}
                     >
                       <div className='text-center'>
-                        <p className='opacity-70 text-xs mb-1'>Answer Preview</p>
+                        <p className='opacity-70 text-xs mb-1'>
+                          Answer Preview
+                        </p>
                         <p>Sample Answer Text</p>
                       </div>
                     </div>
@@ -508,6 +658,26 @@ function App() {
                 Cancel
               </Button>
               <Button onClick={handleSave}>Save</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete Flashcard Set</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete "{flashcardSets.find(s => s.id === setToDelete)?.name}"? 
+                This will permanently remove the set and all {flashcardSets.find(s => s.id === setToDelete)?.flashcards.length || 0} flashcard{(flashcardSets.find(s => s.id === setToDelete)?.flashcards.length || 0) === 1 ? '' : 's'} it contains.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant='outline' onClick={cancelDeleteSet}>
+                Cancel
+              </Button>
+              <Button variant='destructive' onClick={confirmDeleteSet}>
+                Delete
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
