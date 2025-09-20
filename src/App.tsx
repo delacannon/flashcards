@@ -460,7 +460,7 @@ function App() {
                     </div>
 
                     {/* Typography */}
-                    <div className='space-y-3'>
+                    <div className='grid grid-cols-2 gap-3'>
                       <div>
                         <Label className='text-xs'>Font Family</Label>
                         <Select
@@ -570,7 +570,7 @@ function App() {
                     </div>
 
                     {/* Typography */}
-                    <div className='space-y-3'>
+                    <div className='grid grid-cols-2 gap-3'>
                       <div>
                         <Label className='text-xs'>Font Family</Label>
                         <Select
