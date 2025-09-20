@@ -1,0 +1,519 @@
+import { useState } from 'react';
+import { AppSidebar } from '@/components/app-sidebar';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbList,
+  BreadcrumbPage,
+} from '@/components/ui/breadcrumb';
+import { Separator } from '@/components/ui/separator';
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from '@/components/ui/sidebar';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Plus, Edit2, Trash2, ArrowLeftRight, ArrowUpDown, Type } from 'lucide-react';
+import { FlashcardSetView, type FlashcardSet, type FlashcardSetConfig } from '@/components/FlashcardSetView';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+
+function App() {
+  const [flashcardSets, setFlashcardSets] = useState<FlashcardSet[]>([
+    {
+      id: '1',
+      name: 'My First Set',
+      flashcards: [],
+      config: {
+        flipAxis: 'Y',
+        cardTheme: 'default'
+      },
+      createdAt: new Date(),
+    }
+  ]);
+  const [selectedSet, setSelectedSet] = useState<FlashcardSet | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isCreatingSet, setIsCreatingSet] = useState(false);
+  const [editingSetId, setEditingSetId] = useState<string | null>(null);
+  const [inputValue, setInputValue] = useState('');
+  const [configFlipAxis, setConfigFlipAxis] = useState<'X' | 'Y'>('Y');
+  const [configQuestionBgColor, setConfigQuestionBgColor] = useState<string>('#ffffff');
+  const [configQuestionFgColor, setConfigQuestionFgColor] = useState<string>('#000000');
+  const [configQuestionFontSize, setConfigQuestionFontSize] = useState<string>('16px');
+  const [configQuestionFontFamily, setConfigQuestionFontFamily] = useState<string>('Inter');
+  const [configAnswerBgColor, setConfigAnswerBgColor] = useState<string>('#f3f4f6');
+  const [configAnswerFgColor, setConfigAnswerFgColor] = useState<string>('#000000');
+  const [configAnswerFontSize, setConfigAnswerFontSize] = useState<string>('16px');
+  const [configAnswerFontFamily, setConfigAnswerFontFamily] = useState<string>('Inter');
+
+  const handleSetClick = (set: FlashcardSet) => {
+    setSelectedSet(set);
+  };
+
+  const handleEditSetName = (e: React.MouseEvent, setId: string) => {
+    e.stopPropagation();
+    const set = flashcardSets.find(s => s.id === setId);
+    if (set) {
+      setEditingSetId(setId);
+      setInputValue(set.name);
+      setConfigFlipAxis(set.config?.flipAxis || 'Y');
+      setConfigQuestionBgColor(set.config?.questionBgColor || '#ffffff');
+      setConfigQuestionFgColor(set.config?.questionFgColor || '#000000');
+      setConfigQuestionFontSize(set.config?.questionFontSize || '16px');
+      setConfigQuestionFontFamily(set.config?.questionFontFamily || 'Inter');
+      setConfigAnswerBgColor(set.config?.answerBgColor || '#f3f4f6');
+      setConfigAnswerFgColor(set.config?.answerFgColor || '#000000');
+      setConfigAnswerFontSize(set.config?.answerFontSize || '16px');
+      setConfigAnswerFontFamily(set.config?.answerFontFamily || 'Inter');
+      setIsModalOpen(true);
+      setIsCreatingSet(false);
+    }
+  };
+
+  const handleDeleteSet = (e: React.MouseEvent, setId: string) => {
+    e.stopPropagation();
+    setFlashcardSets(flashcardSets.filter(s => s.id !== setId));
+  };
+
+  const handleAddSet = () => {
+    setInputValue('');
+    setConfigFlipAxis('Y');
+    setConfigQuestionBgColor('#ffffff');
+    setConfigQuestionFgColor('#000000');
+    setConfigQuestionFontSize('16px');
+    setConfigQuestionFontFamily('Inter');
+    setConfigAnswerBgColor('#f3f4f6');
+    setConfigAnswerFgColor('#000000');
+    setConfigAnswerFontSize('16px');
+    setConfigAnswerFontFamily('Inter');
+    setIsCreatingSet(true);
+    setEditingSetId(null);
+    setIsModalOpen(true);
+  };
+
+  const handleSave = () => {
+    const config: FlashcardSetConfig = {
+      flipAxis: configFlipAxis,
+      cardTheme: 'default',
+      questionBgColor: configQuestionBgColor,
+      questionFgColor: configQuestionFgColor,
+      questionFontSize: configQuestionFontSize,
+      questionFontFamily: configQuestionFontFamily,
+      answerBgColor: configAnswerBgColor,
+      answerFgColor: configAnswerFgColor,
+      answerFontSize: configAnswerFontSize,
+      answerFontFamily: configAnswerFontFamily
+    };
+
+    if (isCreatingSet) {
+      const newSet: FlashcardSet = {
+        id: Date.now().toString(),
+        name: inputValue || 'Untitled Set',
+        flashcards: [],
+        config,
+        createdAt: new Date(),
+      };
+      setFlashcardSets([...flashcardSets, newSet]);
+    } else if (editingSetId) {
+      setFlashcardSets(flashcardSets.map(set =>
+        set.id === editingSetId
+          ? { ...set, name: inputValue, config }
+          : set
+      ));
+    }
+    setIsModalOpen(false);
+    setInputValue('');
+    setEditingSetId(null);
+    setIsCreatingSet(false);
+  };
+
+  const handleCancel = () => {
+    setIsModalOpen(false);
+    setInputValue('');
+    setEditingSetId(null);
+    setIsCreatingSet(false);
+  };
+
+  const handleUpdateSet = (updatedSet: FlashcardSet) => {
+    setFlashcardSets(flashcardSets.map(set =>
+      set.id === updatedSet.id ? updatedSet : set
+    ));
+    setSelectedSet(updatedSet);
+  };
+
+  const handleBackToSets = () => {
+    setSelectedSet(null);
+  };
+
+  return (
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
+        <header className='bg-background sticky top-0 flex h-16 shrink-0 items-center gap-2 border-b px-4'>
+          <SidebarTrigger className='-ml-1' />
+          <Separator
+            orientation='vertical'
+            className='mr-2 data-[orientation=vertical]:h-4'
+          />
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbPage>
+                  {selectedSet ? selectedSet.name : 'Flashcard Sets'}
+                </BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+        </header>
+
+        {selectedSet ? (
+          <FlashcardSetView
+            set={selectedSet}
+            onBack={handleBackToSets}
+            onUpdateSet={handleUpdateSet}
+          />
+        ) : (
+          <div className='flex flex-1 flex-col gap-4 p-4'>
+            <div className='flex justify-between items-center mb-4'>
+              <h1 className='text-2xl font-bold'>My Flashcard Sets</h1>
+              <span className='text-sm text-muted-foreground'>
+                {flashcardSets.length} {flashcardSets.length === 1 ? 'set' : 'sets'}
+              </span>
+            </div>
+            <div className='grid auto-rows-min gap-4 md:grid-cols-3 lg:grid-cols-4'>
+              {flashcardSets.map((set) => (
+                <Card
+                  key={set.id}
+                  className='relative group cursor-pointer hover:shadow-lg transition-shadow bg-muted/50'
+                  onClick={() => handleSetClick(set)}
+                >
+                  <div className='absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 z-10'>
+                    <Button
+                      size='icon'
+                      variant='ghost'
+                      className='h-8 w-8'
+                      onClick={(e) => handleEditSetName(e, set.id)}
+                    >
+                      <Edit2 className='h-4 w-4' />
+                    </Button>
+                    <Button
+                      size='icon'
+                      variant='ghost'
+                      className='h-8 w-8'
+                      onClick={(e) => handleDeleteSet(e, set.id)}
+                    >
+                      <Trash2 className='h-4 w-4' />
+                    </Button>
+                  </div>
+                  <CardHeader>
+                    <CardTitle className='text-lg'>{set.name}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className='text-sm text-muted-foreground'>
+                      {set.flashcards.length} {set.flashcards.length === 1 ? 'card' : 'cards'}
+                    </p>
+                    <p className='text-xs text-muted-foreground mt-2'>
+                      Created {set.createdAt.toLocaleDateString()}
+                    </p>
+                  </CardContent>
+                </Card>
+              ))}
+              <Card
+                className='cursor-pointer hover:shadow-lg transition-shadow border-2 border-dashed border-muted-foreground/25 bg-transparent'
+                onClick={handleAddSet}
+              >
+                <CardContent className='flex h-full items-center justify-center p-4 min-h-[180px]'>
+                  <div className='flex flex-col items-center gap-2'>
+                    <div className='rounded-full bg-primary/10 p-3'>
+                      <Plus className='h-6 w-6 text-primary' />
+                    </div>
+                    <p className='text-sm text-muted-foreground'>Add Set</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
+
+        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+          <DialogContent 
+            className='max-w-5xl h-[90vh] overflow-y-auto'
+            noOverlay
+          >
+            <DialogHeader>
+              <DialogTitle>
+                {isCreatingSet ? 'Create New Set' : 'Edit Set'}
+              </DialogTitle>
+            </DialogHeader>
+            <div className='grid gap-6 py-4'>
+              {/* Name Input */}
+              <div>
+                <Label htmlFor='name' className='text-base font-semibold'>Set Name</Label>
+                <Input
+                  id='name'
+                  placeholder='Enter flashcard set name...'
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  className='mt-2'
+                />
+              </div>
+
+              {/* Flip Direction */}
+              <div className='border rounded-lg p-4'>
+                <h4 className='text-sm font-semibold mb-3'>Flip Animation</h4>
+                <div className='flex items-center justify-between'>
+                  <Label htmlFor='flip-axis'>Direction</Label>
+                  <div className='flex items-center gap-3'>
+                    <span className={cn('text-sm', configFlipAxis === 'Y' && 'font-medium')}>
+                      <ArrowLeftRight className='h-4 w-4 inline mr-1' />
+                      Horizontal
+                    </span>
+                    <Switch
+                      id='flip-axis'
+                      checked={configFlipAxis === 'X'}
+                      onCheckedChange={(checked) => setConfigFlipAxis(checked ? 'X' : 'Y')}
+                    />
+                    <span className={cn('text-sm', configFlipAxis === 'X' && 'font-medium')}>
+                      <ArrowUpDown className='h-4 w-4 inline mr-1' />
+                      Vertical
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Card Configuration Grid */}
+              <div className='grid grid-cols-2 gap-6'>
+                {/* Question Side Configuration */}
+                <div className='border rounded-lg p-4'>
+                  <h4 className='text-sm font-semibold mb-4 flex items-center gap-2'>
+                    <span className='bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs'>Q</span>
+                    Question Side
+                  </h4>
+                  
+                  <div className='space-y-4'>
+                    {/* Colors */}
+                    <div className='grid grid-cols-2 gap-3'>
+                      <div>
+                        <Label className='text-xs'>Background</Label>
+                        <div className='flex gap-1 mt-1'>
+                          <input
+                            type='color'
+                            value={configQuestionBgColor}
+                            onChange={(e) => setConfigQuestionBgColor(e.target.value)}
+                            className='h-9 w-14 rounded border cursor-pointer'
+                          />
+                          <Input
+                            value={configQuestionBgColor}
+                            onChange={(e) => setConfigQuestionBgColor(e.target.value)}
+                            className='flex-1'
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label className='text-xs'>Text Color</Label>
+                        <div className='flex gap-1 mt-1'>
+                          <input
+                            type='color'
+                            value={configQuestionFgColor}
+                            onChange={(e) => setConfigQuestionFgColor(e.target.value)}
+                            className='h-9 w-14 rounded border cursor-pointer'
+                          />
+                          <Input
+                            value={configQuestionFgColor}
+                            onChange={(e) => setConfigQuestionFgColor(e.target.value)}
+                            className='flex-1'
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Typography */}
+                    <div className='space-y-3'>
+                      <div>
+                        <Label className='text-xs'>Font Family</Label>
+                        <Select value={configQuestionFontFamily} onValueChange={setConfigQuestionFontFamily}>
+                          <SelectTrigger className='mt-1'>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value='Inter'>Inter</SelectItem>
+                            <SelectItem value='Roboto'>Roboto</SelectItem>
+                            <SelectItem value='Open Sans'>Open Sans</SelectItem>
+                            <SelectItem value='Poppins'>Poppins</SelectItem>
+                            <SelectItem value='Montserrat'>Montserrat</SelectItem>
+                            <SelectItem value='Lato'>Lato</SelectItem>
+                            <SelectItem value='Raleway'>Raleway</SelectItem>
+                            <SelectItem value='Playfair Display'>Playfair Display</SelectItem>
+                            <SelectItem value='Merriweather'>Merriweather</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className='text-xs'>Font Size</Label>
+                        <Select value={configQuestionFontSize} onValueChange={setConfigQuestionFontSize}>
+                          <SelectTrigger className='mt-1'>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value='12px'>Small (12px)</SelectItem>
+                            <SelectItem value='14px'>Normal (14px)</SelectItem>
+                            <SelectItem value='16px'>Medium (16px)</SelectItem>
+                            <SelectItem value='18px'>Large (18px)</SelectItem>
+                            <SelectItem value='20px'>Extra Large (20px)</SelectItem>
+                            <SelectItem value='24px'>Huge (24px)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    {/* Preview */}
+                    <div 
+                      className='rounded-lg border p-4 min-h-[100px] flex items-center justify-center'
+                      style={{ 
+                        backgroundColor: configQuestionBgColor, 
+                        color: configQuestionFgColor,
+                        fontFamily: configQuestionFontFamily,
+                        fontSize: configQuestionFontSize
+                      }}
+                    >
+                      <div className='text-center'>
+                        <p className='opacity-70 text-xs mb-1'>Question Preview</p>
+                        <p>Sample Question Text</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Answer Side Configuration */}
+                <div className='border rounded-lg p-4'>
+                  <h4 className='text-sm font-semibold mb-4 flex items-center gap-2'>
+                    <span className='bg-green-100 text-green-700 px-2 py-1 rounded text-xs'>A</span>
+                    Answer Side
+                  </h4>
+                  
+                  <div className='space-y-4'>
+                    {/* Colors */}
+                    <div className='grid grid-cols-2 gap-3'>
+                      <div>
+                        <Label className='text-xs'>Background</Label>
+                        <div className='flex gap-1 mt-1'>
+                          <input
+                            type='color'
+                            value={configAnswerBgColor}
+                            onChange={(e) => setConfigAnswerBgColor(e.target.value)}
+                            className='h-9 w-14 rounded border cursor-pointer'
+                          />
+                          <Input
+                            value={configAnswerBgColor}
+                            onChange={(e) => setConfigAnswerBgColor(e.target.value)}
+                            className='flex-1'
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label className='text-xs'>Text Color</Label>
+                        <div className='flex gap-1 mt-1'>
+                          <input
+                            type='color'
+                            value={configAnswerFgColor}
+                            onChange={(e) => setConfigAnswerFgColor(e.target.value)}
+                            className='h-9 w-14 rounded border cursor-pointer'
+                          />
+                          <Input
+                            value={configAnswerFgColor}
+                            onChange={(e) => setConfigAnswerFgColor(e.target.value)}
+                            className='flex-1'
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Typography */}
+                    <div className='space-y-3'>
+                      <div>
+                        <Label className='text-xs'>Font Family</Label>
+                        <Select value={configAnswerFontFamily} onValueChange={setConfigAnswerFontFamily}>
+                          <SelectTrigger className='mt-1'>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value='Inter'>Inter</SelectItem>
+                            <SelectItem value='Roboto'>Roboto</SelectItem>
+                            <SelectItem value='Open Sans'>Open Sans</SelectItem>
+                            <SelectItem value='Poppins'>Poppins</SelectItem>
+                            <SelectItem value='Montserrat'>Montserrat</SelectItem>
+                            <SelectItem value='Lato'>Lato</SelectItem>
+                            <SelectItem value='Raleway'>Raleway</SelectItem>
+                            <SelectItem value='Playfair Display'>Playfair Display</SelectItem>
+                            <SelectItem value='Merriweather'>Merriweather</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className='text-xs'>Font Size</Label>
+                        <Select value={configAnswerFontSize} onValueChange={setConfigAnswerFontSize}>
+                          <SelectTrigger className='mt-1'>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value='12px'>Small (12px)</SelectItem>
+                            <SelectItem value='14px'>Normal (14px)</SelectItem>
+                            <SelectItem value='16px'>Medium (16px)</SelectItem>
+                            <SelectItem value='18px'>Large (18px)</SelectItem>
+                            <SelectItem value='20px'>Extra Large (20px)</SelectItem>
+                            <SelectItem value='24px'>Huge (24px)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    {/* Preview */}
+                    <div 
+                      className='rounded-lg border p-4 min-h-[100px] flex items-center justify-center'
+                      style={{ 
+                        backgroundColor: configAnswerBgColor, 
+                        color: configAnswerFgColor,
+                        fontFamily: configAnswerFontFamily,
+                        fontSize: configAnswerFontSize
+                      }}
+                    >
+                      <div className='text-center'>
+                        <p className='opacity-70 text-xs mb-1'>Answer Preview</p>
+                        <p>Sample Answer Text</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant='outline' onClick={handleCancel}>
+                Cancel
+              </Button>
+              <Button onClick={handleSave}>Save</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </SidebarInset>
+    </SidebarProvider>
+  );
+}
+
+export default App;
