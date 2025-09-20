@@ -1,4 +1,3 @@
-import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical } from 'lucide-react';
@@ -14,10 +13,12 @@ interface SortableFlipCardProps {
   questionFgColor?: string;
   questionFontSize?: string;
   questionFontFamily?: string;
+  questionBackgroundPattern?: string;
   answerBgColor?: string;
   answerFgColor?: string;
   answerFontSize?: string;
   answerFontFamily?: string;
+  answerBackgroundPattern?: string;
   onEdit: () => void;
   onDelete: () => void;
   onUpdateContent: (id: string, question: string, answer: string) => void;
@@ -52,7 +53,7 @@ export function SortableFlipCard(props: SortableFlipCardProps) {
         'hover:bg-accent'
       )}
     >
-      <GripVertical className="h-4 w-4 text-muted-foreground" />
+      <GripVertical className='h-4 w-4 text-muted-foreground' />
     </div>
   );
 
@@ -68,7 +69,7 @@ export function SortableFlipCard(props: SortableFlipCardProps) {
       {/* Flashcard with drag handle passed as prop */}
       <EditableFlipCard
         {...props}
-        className="min-h-[200px]"
+        className='min-h-[200px]'
         dragHandle={dragHandleElement}
       />
     </div>

@@ -24,7 +24,15 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit2, Trash2, Copy, ArrowLeftRight, ArrowUpDown, Play } from 'lucide-react';
+import {
+  Plus,
+  Edit2,
+  Trash2,
+  Copy,
+  ArrowLeftRight,
+  ArrowUpDown,
+  Play,
+} from 'lucide-react';
 import {
   FlashcardSetView,
   type FlashcardSet,
@@ -56,6 +64,16 @@ function App() {
       config: {
         flipAxis: 'Y',
         cardTheme: 'default',
+        questionBgColor: '#ffffff',
+        questionFgColor: '#000000',
+        questionFontSize: '16px',
+        questionFontFamily: 'Inter',
+        questionBackgroundPattern: 'none',
+        answerBgColor: '#f3f4f6',
+        answerFgColor: '#000000',
+        answerFontSize: '16px',
+        answerFontFamily: 'Inter',
+        answerBackgroundPattern: 'none',
       },
       createdAt: new Date(),
     },
@@ -82,9 +100,9 @@ function App() {
     useState<string>('16px');
   const [configAnswerFontFamily, setConfigAnswerFontFamily] =
     useState<string>('Inter');
-  const [configQuestionPattern, setConfigQuestionPattern] = 
+  const [configQuestionPattern, setConfigQuestionPattern] =
     useState<string>('none');
-  const [configAnswerPattern, setConfigAnswerPattern] = 
+  const [configAnswerPattern, setConfigAnswerPattern] =
     useState<string>('none');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [setToDelete, setSetToDelete] = useState<string | null>(null);
@@ -268,7 +286,15 @@ function App() {
             onUpdateSet={handleUpdateSet}
           />
         ) : (
-          <div className='flex flex-1 flex-col gap-4 p-4'>
+          <div
+            className='flex flex-1 flex-col gap-4 p-4'
+            style={{
+              backgroundColor: '#fafafa',
+              backgroundImage:
+                'radial-gradient(circle, rgba(0,0,0,0.1) 1px, transparent 1px)',
+              backgroundSize: '20px 20px',
+            }}
+          >
             <div className='flex justify-between items-center mb-4'>
               <h1 className='text-2xl font-bold'>My Flashcard Sets</h1>
               <span className='text-sm text-muted-foreground'>
@@ -351,16 +377,13 @@ function App() {
         )}
 
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <DialogContent
-            className='max-w-5xl h-[90vh] overflow-y-auto'
-            noOverlay
-          >
+          <DialogContent className='max-w-5xl overflow-y-auto' noOverlay>
             <DialogHeader>
               <DialogTitle>
                 {isCreatingSet ? 'Create New Set' : 'Edit Set'}
               </DialogTitle>
             </DialogHeader>
-            <div className='grid gap-6 py-4'>
+            <div className='grid gap-2 py-4'>
               {/* Name Input */}
               <div>
                 <Label htmlFor='name' className='text-base font-semibold'>
@@ -501,8 +524,11 @@ function App() {
                     <div
                       className='rounded-lg border p-4 min-h-[100px] flex items-center justify-center'
                       style={{
-                        ...(configQuestionPattern && configQuestionPattern !== 'none'
-                          ? getPatternById(configQuestionPattern)?.getCSS(configQuestionBgColor)
+                        ...(configQuestionPattern &&
+                        configQuestionPattern !== 'none'
+                          ? getPatternById(configQuestionPattern)?.getCSS(
+                              configQuestionBgColor
+                            )
                           : { backgroundColor: configQuestionBgColor }),
                         color: configQuestionFgColor,
                         fontFamily: configQuestionFontFamily,
@@ -608,8 +634,11 @@ function App() {
                     <div
                       className='rounded-lg border p-4 min-h-[100px] flex items-center justify-center'
                       style={{
-                        ...(configAnswerPattern && configAnswerPattern !== 'none'
-                          ? getPatternById(configAnswerPattern)?.getCSS(configAnswerBgColor)
+                        ...(configAnswerPattern &&
+                        configAnswerPattern !== 'none'
+                          ? getPatternById(configAnswerPattern)?.getCSS(
+                              configAnswerBgColor
+                            )
                           : { backgroundColor: configAnswerBgColor }),
                         color: configAnswerFgColor,
                         fontFamily: configAnswerFontFamily,
@@ -641,8 +670,17 @@ function App() {
             <DialogHeader>
               <DialogTitle>Delete Flashcard Set</DialogTitle>
               <DialogDescription>
-                Are you sure you want to delete "{flashcardSets.find(s => s.id === setToDelete)?.name}"? 
-                This will permanently remove the set and all {flashcardSets.find(s => s.id === setToDelete)?.flashcards.length || 0} flashcard{(flashcardSets.find(s => s.id === setToDelete)?.flashcards.length || 0) === 1 ? '' : 's'} it contains.
+                Are you sure you want to delete "
+                {flashcardSets.find((s) => s.id === setToDelete)?.name}"? This
+                will permanently remove the set and all{' '}
+                {flashcardSets.find((s) => s.id === setToDelete)?.flashcards
+                  .length || 0}{' '}
+                flashcard
+                {(flashcardSets.find((s) => s.id === setToDelete)?.flashcards
+                  .length || 0) === 1
+                  ? ''
+                  : 's'}{' '}
+                it contains.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
