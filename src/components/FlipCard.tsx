@@ -20,6 +20,8 @@ interface FlipCardProps {
   answerFgColor?: string;
   answerFontSize?: string;
   answerFontFamily?: string;
+  backgroundImage?: string;
+  backgroundImageOpacity?: number;
   onEdit: () => void;
   onDelete: () => void;
   className?: string;
@@ -37,6 +39,8 @@ export function FlipCard({
   answerFgColor,
   answerFontSize,
   answerFontFamily,
+  backgroundImage,
+  backgroundImageOpacity = 0.3,
   onEdit, 
   onDelete, 
   className 
@@ -64,7 +68,7 @@ export function FlipCard({
         }}
       >
         <div 
-          className='w-full h-full rounded-xl border shadow hover:shadow-lg transition-shadow min-h-[200px]'
+          className='w-full h-full rounded-xl border shadow hover:shadow-lg transition-shadow min-h-[200px] relative overflow-hidden'
           style={{
             backgroundColor: questionBgColor || undefined,
             color: questionFgColor || undefined,
@@ -72,7 +76,20 @@ export function FlipCard({
             fontFamily: questionFontFamily || undefined
           }}
         >
-          <div className='absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 z-10'>
+          {/* Background Image */}
+          {backgroundImage && (
+            <div
+              className='absolute inset-0 z-0'
+              style={{
+                backgroundImage: `url(${backgroundImage})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat',
+                opacity: backgroundImageOpacity,
+              }}
+            />
+          )}
+          <div className='absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 z-20'>
             <Button
               size='icon'
               variant='ghost'
@@ -96,7 +113,7 @@ export function FlipCard({
               <Trash2 className='h-4 w-4' />
             </Button>
           </div>
-          <div className='flex h-full min-h-[200px] items-center justify-center p-6'>
+          <div className='flex h-full min-h-[200px] items-center justify-center p-6 relative z-10'>
             <div className='text-center w-full'>
               <p className='text-xs opacity-70 mb-2'>Question</p>
               <div 
@@ -140,7 +157,7 @@ export function FlipCard({
         }}
       >
         <div 
-          className='w-full h-full rounded-xl border shadow hover:shadow-lg transition-shadow min-h-[200px]'
+          className='w-full h-full rounded-xl border shadow hover:shadow-lg transition-shadow min-h-[200px] relative overflow-hidden'
           style={{
             backgroundColor: answerBgColor || undefined,
             color: answerFgColor || undefined,
@@ -148,7 +165,20 @@ export function FlipCard({
             fontFamily: answerFontFamily || undefined
           }}
         >
-          <div className='absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 z-10'>
+          {/* Background Image */}
+          {backgroundImage && (
+            <div
+              className='absolute inset-0 z-0'
+              style={{
+                backgroundImage: `url(${backgroundImage})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat',
+                opacity: backgroundImageOpacity,
+              }}
+            />
+          )}
+          <div className='absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 z-20'>
             <Button
               size='icon'
               variant='ghost'
@@ -172,7 +202,7 @@ export function FlipCard({
               <Trash2 className='h-4 w-4' />
             </Button>
           </div>
-          <div className='flex h-full min-h-[200px] items-center justify-center p-6'>
+          <div className='flex h-full min-h-[200px] items-center justify-center p-6 relative z-10'>
             <div className='text-center w-full'>
               <p className='text-xs opacity-70 mb-2'>Answer</p>
               <div 

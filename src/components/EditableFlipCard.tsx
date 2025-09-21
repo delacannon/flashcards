@@ -35,6 +35,8 @@ interface EditableFlipCardProps {
   answerFontSize?: string;
   answerFontFamily?: string;
   answerBackgroundPattern?: string;
+  backgroundImage?: string;
+  backgroundImageOpacity?: number;
   onEdit: () => void;
   onDelete: () => void;
   onUpdateContent: (id: string, question: string, answer: string) => void;
@@ -57,6 +59,8 @@ export function EditableFlipCard({
   answerFontSize,
   answerFontFamily,
   answerBackgroundPattern,
+  backgroundImage,
+  backgroundImageOpacity = 0.3,
   onEdit,
   onDelete,
   onUpdateContent,
@@ -226,7 +230,7 @@ export function EditableFlipCard({
       >
         <div
           className={cn(
-            'w-full h-full rounded-xl border shadow hover:shadow-lg transition-shadow min-h-[200px]',
+            'w-full h-full rounded-xl border shadow hover:shadow-lg transition-shadow min-h-[200px] relative overflow-hidden',
             isEditingQuestion && 'ring-2 ring-primary ring-offset-2'
           )}
           style={{
@@ -237,13 +241,26 @@ export function EditableFlipCard({
             fontFamily: questionFontFamily || undefined,
           }}
         >
+          {/* Background Image */}
+          {backgroundImage && (
+            <div
+              className='absolute inset-0 z-0'
+              style={{
+                backgroundImage: `url(${backgroundImage})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat',
+                opacity: backgroundImageOpacity,
+              }}
+            />
+          )}
           {/* Drag Handle - only on front side */}
           {dragHandle && (
-            <div className='absolute top-2 left-2 z-10'>
+            <div className='absolute top-2 left-2 z-20'>
               {dragHandle}
             </div>
           )}
-          <div className='absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 z-10'>
+          <div className='absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 z-20'>
             <Button
               size='icon'
               variant='ghost'
@@ -267,7 +284,7 @@ export function EditableFlipCard({
               <Trash2 className='h-4 w-4' />
             </Button>
           </div>
-          <div className='flex h-full min-h-[200px] items-center justify-center p-6'>
+          <div className='flex h-full min-h-[200px] items-center justify-center p-6 relative z-10'>
             <div className='text-center w-full'>
               <div className='editable-content' onClick={handleQuestionClick}>
                 {isEditingQuestion ? (
@@ -336,7 +353,7 @@ export function EditableFlipCard({
       >
         <div
           className={cn(
-            'w-full h-full rounded-xl border shadow hover:shadow-lg transition-shadow min-h-[200px]',
+            'w-full h-full rounded-xl border shadow hover:shadow-lg transition-shadow min-h-[200px] relative overflow-hidden',
             isEditingAnswer && 'ring-2 ring-primary ring-offset-2'
           )}
           style={{
@@ -347,13 +364,26 @@ export function EditableFlipCard({
             fontFamily: answerFontFamily || undefined,
           }}
         >
+          {/* Background Image */}
+          {backgroundImage && (
+            <div
+              className='absolute inset-0 z-0'
+              style={{
+                backgroundImage: `url(${backgroundImage})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat',
+                opacity: backgroundImageOpacity,
+              }}
+            />
+          )}
           {/* Drag Handle - also on answer side */}
           {dragHandle && (
-            <div className='absolute top-2 left-2 z-10'>
+            <div className='absolute top-2 left-2 z-20'>
               {dragHandle}
             </div>
           )}
-          <div className='absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 z-10'>
+          <div className='absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 z-20'>
             <Button
               size='icon'
               variant='ghost'
@@ -377,7 +407,7 @@ export function EditableFlipCard({
               <Trash2 className='h-4 w-4' />
             </Button>
           </div>
-          <div className='flex h-full min-h-[200px] items-center justify-center p-6'>
+          <div className='flex h-full min-h-[200px] items-center justify-center p-6 relative z-10'>
             <div className='text-center w-full'>
               <div className='editable-content' onClick={handleAnswerClick}>
                 {isEditingAnswer ? (

@@ -19,6 +19,7 @@ export interface FlashcardSetConfig {
   answerFontFamily?: string;
   answerBackgroundPattern?: string;
   backgroundImage?: string;
+  backgroundImageOpacity?: number;
 }
 
 export interface FlashcardSet {

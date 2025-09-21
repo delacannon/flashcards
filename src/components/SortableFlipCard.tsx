@@ -19,6 +19,8 @@ interface SortableFlipCardProps {
   answerFontSize?: string;
   answerFontFamily?: string;
   answerBackgroundPattern?: string;
+  backgroundImage?: string;
+  backgroundImageOpacity?: number;
   onEdit: () => void;
   onDelete: () => void;
   onUpdateContent: (id: string, question: string, answer: string) => void;

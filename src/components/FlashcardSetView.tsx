@@ -640,6 +640,8 @@ export function FlashcardSetView({
                   answerFontSize={set.config?.answerFontSize}
                   answerFontFamily={set.config?.answerFontFamily}
                   answerBackgroundPattern={set.config?.answerBackgroundPattern}
+                  backgroundImage={set.config?.backgroundImage}
+                  backgroundImageOpacity={set.config?.backgroundImageOpacity}
                   onEdit={() => handleEditFlashcard(flashcard)}
                   onDelete={() => handleDeleteFlashcard(flashcard.id)}
                   onUpdateContent={handleUpdateFlashcardContent}

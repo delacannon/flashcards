@@ -240,7 +240,7 @@ export function PlayMode({ set, onExit }: PlayModeProps) {
                         }}
                       >
                         <div
-                          className='w-full h-full rounded-2xl border-2 shadow-xl flex items-center justify-center p-12'
+                          className='w-full h-full rounded-2xl border-2 shadow-xl flex items-center justify-center p-12 relative overflow-hidden'
                           style={{
                             ...(set.config?.questionBackgroundPattern && set.config.questionBackgroundPattern !== 'none'
                               ? getPatternById(set.config.questionBackgroundPattern)?.getCSS(set.config?.questionBgColor || '#ffffff')
@@ -251,7 +251,20 @@ export function PlayMode({ set, onExit }: PlayModeProps) {
                             minHeight: '400px',
                           }}
                         >
-                          <div className='text-center'>
+                          {/* Background Image */}
+                          {set.config?.backgroundImage && (
+                            <div
+                              className='absolute inset-0 z-0'
+                              style={{
+                                backgroundImage: `url(${set.config.backgroundImage})`,
+                                backgroundSize: 'cover',
+                                backgroundPosition: 'center',
+                                backgroundRepeat: 'no-repeat',
+                                opacity: set.config.backgroundImageOpacity || 0.3,
+                              }}
+                            />
+                          )}
+                          <div className='text-center relative z-10'>
                             <div
                               className='text-2xl leading-relaxed prose prose-lg max-w-none select-none'
                               style={{
@@ -319,7 +332,7 @@ export function PlayMode({ set, onExit }: PlayModeProps) {
                         }}
                       >
                         <div
-                          className='w-full h-full rounded-2xl border-2 shadow-xl flex items-center justify-center p-12'
+                          className='w-full h-full rounded-2xl border-2 shadow-xl flex items-center justify-center p-12 relative overflow-hidden'
                           style={{
                             ...(set.config?.answerBackgroundPattern && set.config.answerBackgroundPattern !== 'none'
                               ? getPatternById(set.config.answerBackgroundPattern)?.getCSS(set.config?.answerBgColor || '#f3f4f6')
@@ -329,7 +342,20 @@ export function PlayMode({ set, onExit }: PlayModeProps) {
                             minHeight: '400px',
                           }}
                         >
-                          <div className='text-center'>
+                          {/* Background Image */}
+                          {set.config?.backgroundImage && (
+                            <div
+                              className='absolute inset-0 z-0'
+                              style={{
+                                backgroundImage: `url(${set.config.backgroundImage})`,
+                                backgroundSize: 'cover',
+                                backgroundPosition: 'center',
+                                backgroundRepeat: 'no-repeat',
+                                opacity: set.config.backgroundImageOpacity || 0.3,
+                              }}
+                            />
+                          )}
+                          <div className='text-center relative z-10'>
                             <div
                               className='text-2xl leading-relaxed prose prose-lg max-w-none select-none'
                               style={{

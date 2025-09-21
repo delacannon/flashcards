@@ -88,6 +88,10 @@ function App() {
     useState<string>('none');
   const [configCardCount, setConfigCardCount] = useState<number>(5);
   const [configAiPrompt, setConfigAiPrompt] = useState<string>('');
+  const [configBackgroundImage, setConfigBackgroundImage] =
+    useState<string>('');
+  const [configBackgroundImageOpacity, setConfigBackgroundImageOpacity] =
+    useState<number>(0.3);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [setToDelete, setSetToDelete] = useState<string | null>(null);
 
@@ -123,6 +127,8 @@ function App() {
       setConfigAnswerFontFamily(set.config?.answerFontFamily || 'Inter');
       setConfigQuestionPattern(set.config?.questionBackgroundPattern || 'none');
       setConfigAnswerPattern(set.config?.answerBackgroundPattern || 'none');
+      setConfigBackgroundImage(set.config?.backgroundImage || '');
+      setConfigBackgroundImageOpacity(set.config?.backgroundImageOpacity || 0.3);
       setIsModalOpen(true);
       setIsCreatingSet(false);
     }
@@ -179,6 +185,8 @@ function App() {
     setConfigAnswerPattern('none');
     setConfigCardCount(5);
     setConfigAiPrompt('');
+    setConfigBackgroundImage('');
+    setConfigBackgroundImageOpacity(0.3);
     setIsCreatingSet(true);
     setEditingSetId(null);
     setIsModalOpen(true);
@@ -198,6 +206,8 @@ function App() {
       answerFontSize: configAnswerFontSize,
       answerFontFamily: configAnswerFontFamily,
       answerBackgroundPattern: configAnswerPattern,
+      backgroundImage: configBackgroundImage,
+      backgroundImageOpacity: configBackgroundImageOpacity,
       aiPrompt: configAiPrompt,
     };
 
@@ -403,67 +413,128 @@ function App() {
                 />
               </div>
 
-              {/* AI Generation or Default Cards (only for creating) */}
+              {/* AI Generation (only for creating) */}
               {isCreatingSet && (
-                <>
-                  {/* AI Prompt */}
-                  <div className='border rounded-lg p-4'>
-                    <h4 className='text-sm font-semibold mb-3'>
-                      AI Generation (Optional)
-                    </h4>
-                    <div className='space-y-3'>
-                      <Textarea
-                        id='ai-prompt'
-                        placeholder='e.g., "Spanish vocabulary for beginners", "Chemistry periodic table elements", "World War II key events"'
-                        value={configAiPrompt}
-                        onChange={(e) => setConfigAiPrompt(e.target.value)}
-                        className='min-h-[80px]'
-                      />
+                <div className='border rounded-lg p-4'>
+                  <h4 className='text-sm font-semibold mb-3'>
+                    AI Generation (Optional)
+                  </h4>
+                  <div className='space-y-3'>
+                    <Textarea
+                      id='ai-prompt'
+                      placeholder='e.g., "Spanish vocabulary for beginners", "Chemistry periodic table elements", "World War II key events"'
+                      value={configAiPrompt}
+                      onChange={(e) => setConfigAiPrompt(e.target.value)}
+                      className='min-h-[80px]'
+                    />
 
-                      {!aiService.isConfigured() && (
-                        <p className='text-xs text-amber-600'>
-                          ⚠️ OpenAI API key not configured. Add
-                          VITE_OPENAI_API_KEY to .env file to enable AI
-                          generation.
-                        </p>
-                      )}
-                    </div>
+                    {!aiService.isConfigured() && (
+                      <p className='text-xs text-amber-600'>
+                        ⚠️ OpenAI API key not configured. Add
+                        VITE_OPENAI_API_KEY to .env file to enable AI
+                        generation.
+                      </p>
+                    )}
                   </div>
-
-                  {/* Card Count */}
-                  <div className='border rounded-lg p-4'>
-                    <h4 className='text-sm font-semibold mb-3'>
-                      Number of Cards
-                    </h4>
-                    <div className='space-y-3'>
-                      <div className='flex items-center justify-between'>
-                        <Label htmlFor='card-count'>
-                          {configAiPrompt
-                            ? 'Cards to generate with AI'
-                            : 'Generate cards with default content'}
-                        </Label>
-                        <span className='text-sm font-medium text-muted-foreground'>
-                          {configCardCount}{' '}
-                          {configCardCount === 1 ? 'card' : 'cards'}
-                        </span>
-                      </div>
-                      <Slider
-                        id='card-count'
-                        min={5}
-                        max={115}
-                        step={5}
-                        value={[configCardCount]}
-                        onValueChange={(value) => setConfigCardCount(value[0])}
-                        className='w-full'
-                      />
-                      <div className='flex justify-between text-xs text-muted-foreground'>
-                        <span>5</span>
-                        <span>115</span>
-                      </div>
-                    </div>
-                  </div>
-                </>
+                </div>
               )}
+
+              {/* Card Count and Background Image - Side by Side */}
+              <div className={isCreatingSet ? 'grid grid-cols-2 gap-4' : ''}>
+                {/* Card Count (only for creating) */}
+                {isCreatingSet && (
+                  <div className='border rounded-lg p-4'>
+                      <h4 className='text-sm font-semibold mb-3'>
+                        Number of Cards
+                      </h4>
+                      <div className='space-y-3'>
+                        <div className='flex items-center justify-between'>
+                          <Label htmlFor='card-count' className='text-xs'>
+                            {configAiPrompt
+                              ? 'Cards to generate'
+                              : 'Default cards'}
+                          </Label>
+                          <span className='text-sm font-medium text-muted-foreground'>
+                            {configCardCount}{' '}
+                            {configCardCount === 1 ? 'card' : 'cards'}
+                          </span>
+                        </div>
+                        <Slider
+                          id='card-count'
+                          min={5}
+                          max={115}
+                          step={5}
+                          value={[configCardCount]}
+                          onValueChange={(value) => setConfigCardCount(value[0])}
+                          className='w-full'
+                        />
+                        <div className='flex justify-between text-xs text-muted-foreground'>
+                          <span>5</span>
+                          <span>115</span>
+                        </div>
+                      </div>
+                    </div>
+                )}
+
+                {/* Background Image (for both create and edit) */}
+                <div className='border rounded-lg p-4'>
+                      <h4 className='text-sm font-semibold mb-3'>Card Background</h4>
+                      <div className='space-y-3'>
+                        <div>
+                          <Input
+                            id='background-image'
+                            type='url'
+                            placeholder='https://example.com/image.jpg'
+                            value={configBackgroundImage}
+                            onChange={(e) => setConfigBackgroundImage(e.target.value)}
+                            className='text-sm'
+                          />
+                          <p className='text-xs text-muted-foreground mt-1'>
+                            Image URL for card backgrounds
+                          </p>
+                        </div>
+                        {configBackgroundImage && (
+                          <div className='space-y-2'>
+                            <div
+                              className='h-16 rounded-lg border bg-cover bg-center bg-no-repeat relative overflow-hidden'
+                              style={{
+                                backgroundImage: `url(${configBackgroundImage})`,
+                                opacity: configBackgroundImageOpacity,
+                              }}
+                            />
+                            <div>
+                              <div className='flex items-center justify-between mb-1'>
+                                <Label className='text-xs'>Opacity</Label>
+                                <span className='text-xs text-muted-foreground'>
+                                  {Math.round(configBackgroundImageOpacity * 100)}%
+                                </span>
+                              </div>
+                              <Slider
+                                min={0}
+                                max={100}
+                                step={5}
+                                value={[configBackgroundImageOpacity * 100]}
+                                onValueChange={(value) => setConfigBackgroundImageOpacity(value[0] / 100)}
+                                className='w-full'
+                              />
+                            </div>
+                            <Button
+                              type='button'
+                              variant='outline'
+                              size='sm'
+                              className='w-full text-xs'
+                              onClick={() => {
+                                setConfigBackgroundImage('');
+                                setConfigBackgroundImageOpacity(0.3);
+                              }}
+                            >
+                              Clear
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
 
               {/* Flip Direction */}
               <div className='border rounded-lg p-4'>
