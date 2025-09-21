@@ -19,8 +19,23 @@ interface SortableFlipCardProps {
   answerFontSize?: string;
   answerFontFamily?: string;
   answerBackgroundPattern?: string;
+  // Question side background
+  questionBackgroundImage?: string;
+  questionBackgroundImageOpacity?: number;
+  // Answer side background
+  answerBackgroundImage?: string;
+  answerBackgroundImageOpacity?: number;
+  // Legacy support
   backgroundImage?: string;
   backgroundImageOpacity?: number;
+  // Border styles for question side
+  questionBorderStyle?: string;
+  questionBorderWidth?: string;
+  questionBorderColor?: string;
+  // Border styles for answer side
+  answerBorderStyle?: string;
+  answerBorderWidth?: string;
+  answerBorderColor?: string;
   onEdit: () => void;
   onDelete: () => void;
   onUpdateContent: (id: string, question: string, answer: string) => void;

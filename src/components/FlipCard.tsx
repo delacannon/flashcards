@@ -20,8 +20,23 @@ interface FlipCardProps {
   answerFgColor?: string;
   answerFontSize?: string;
   answerFontFamily?: string;
+  // Question side background
+  questionBackgroundImage?: string;
+  questionBackgroundImageOpacity?: number;
+  // Answer side background
+  answerBackgroundImage?: string;
+  answerBackgroundImageOpacity?: number;
+  // Legacy support
   backgroundImage?: string;
   backgroundImageOpacity?: number;
+  // Border styles for question side
+  questionBorderStyle?: string;
+  questionBorderWidth?: string;
+  questionBorderColor?: string;
+  // Border styles for answer side
+  answerBorderStyle?: string;
+  answerBorderWidth?: string;
+  answerBorderColor?: string;
   onEdit: () => void;
   onDelete: () => void;
   className?: string;
@@ -39,8 +54,18 @@ export function FlipCard({
   answerFgColor,
   answerFontSize,
   answerFontFamily,
+  questionBackgroundImage,
+  questionBackgroundImageOpacity,
+  answerBackgroundImage,
+  answerBackgroundImageOpacity,
   backgroundImage,
   backgroundImageOpacity = 0.3,
+  questionBorderStyle = 'solid',
+  questionBorderWidth = '1px',
+  questionBorderColor = '#e5e7eb',
+  answerBorderStyle = 'solid',
+  answerBorderWidth = '1px',
+  answerBorderColor = '#e5e7eb',
   onEdit, 
   onDelete, 
   className 
@@ -68,8 +93,11 @@ export function FlipCard({
         }}
       >
         <div 
-          className='w-full h-full rounded-xl border shadow hover:shadow-lg transition-shadow min-h-[200px] relative overflow-hidden'
+          className='w-full h-full rounded-xl shadow hover:shadow-lg transition-shadow min-h-[200px] relative overflow-hidden'
           style={{
+            borderStyle: questionBorderStyle === 'none' ? 'none' : questionBorderStyle,
+            borderWidth: questionBorderStyle === 'none' ? '0' : questionBorderWidth,
+            borderColor: questionBorderColor,
             backgroundColor: questionBgColor || undefined,
             color: questionFgColor || undefined,
             fontSize: questionFontSize || undefined,
@@ -77,15 +105,15 @@ export function FlipCard({
           }}
         >
           {/* Background Image */}
-          {backgroundImage && (
+          {(questionBackgroundImage || backgroundImage) && (
             <div
               className='absolute inset-0 z-0'
               style={{
-                backgroundImage: `url(${backgroundImage})`,
+                backgroundImage: `url(${questionBackgroundImage || backgroundImage})`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
                 backgroundRepeat: 'no-repeat',
-                opacity: backgroundImageOpacity,
+                opacity: questionBackgroundImageOpacity !== undefined ? questionBackgroundImageOpacity : backgroundImageOpacity,
               }}
             />
           )}
@@ -157,8 +185,11 @@ export function FlipCard({
         }}
       >
         <div 
-          className='w-full h-full rounded-xl border shadow hover:shadow-lg transition-shadow min-h-[200px] relative overflow-hidden'
+          className='w-full h-full rounded-xl shadow hover:shadow-lg transition-shadow min-h-[200px] relative overflow-hidden'
           style={{
+            borderStyle: answerBorderStyle === 'none' ? 'none' : answerBorderStyle,
+            borderWidth: answerBorderStyle === 'none' ? '0' : answerBorderWidth,
+            borderColor: answerBorderColor,
             backgroundColor: answerBgColor || undefined,
             color: answerFgColor || undefined,
             fontSize: answerFontSize || undefined,
@@ -166,15 +197,15 @@ export function FlipCard({
           }}
         >
           {/* Background Image */}
-          {backgroundImage && (
+          {(answerBackgroundImage || backgroundImage) && (
             <div
               className='absolute inset-0 z-0'
               style={{
-                backgroundImage: `url(${backgroundImage})`,
+                backgroundImage: `url(${answerBackgroundImage || backgroundImage})`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
                 backgroundRepeat: 'no-repeat',
-                opacity: backgroundImageOpacity,
+                opacity: answerBackgroundImageOpacity !== undefined ? answerBackgroundImageOpacity : backgroundImageOpacity,
               }}
             />
           )}

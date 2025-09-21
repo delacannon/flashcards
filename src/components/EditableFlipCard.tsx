@@ -35,8 +35,23 @@ interface EditableFlipCardProps {
   answerFontSize?: string;
   answerFontFamily?: string;
   answerBackgroundPattern?: string;
+  // Question side background
+  questionBackgroundImage?: string;
+  questionBackgroundImageOpacity?: number;
+  // Answer side background
+  answerBackgroundImage?: string;
+  answerBackgroundImageOpacity?: number;
+  // Legacy support
   backgroundImage?: string;
   backgroundImageOpacity?: number;
+  // Border styles for question side
+  questionBorderStyle?: string;
+  questionBorderWidth?: string;
+  questionBorderColor?: string;
+  // Border styles for answer side
+  answerBorderStyle?: string;
+  answerBorderWidth?: string;
+  answerBorderColor?: string;
   onEdit: () => void;
   onDelete: () => void;
   onUpdateContent: (id: string, question: string, answer: string) => void;
@@ -59,8 +74,18 @@ export function EditableFlipCard({
   answerFontSize,
   answerFontFamily,
   answerBackgroundPattern,
+  questionBackgroundImage,
+  questionBackgroundImageOpacity,
+  answerBackgroundImage,
+  answerBackgroundImageOpacity,
   backgroundImage,
   backgroundImageOpacity = 0.3,
+  questionBorderStyle = 'solid',
+  questionBorderWidth = '1px',
+  questionBorderColor = '#e5e7eb',
+  answerBorderStyle = 'solid',
+  answerBorderWidth = '1px',
+  answerBorderColor = '#e5e7eb',
   onEdit,
   onDelete,
   onUpdateContent,
@@ -230,10 +255,13 @@ export function EditableFlipCard({
       >
         <div
           className={cn(
-            'w-full h-full rounded-xl border shadow hover:shadow-lg transition-shadow min-h-[200px] relative overflow-hidden',
+            'w-full h-full rounded-xl shadow hover:shadow-lg transition-shadow min-h-[200px] relative overflow-hidden',
             isEditingQuestion && 'ring-2 ring-primary ring-offset-2'
           )}
           style={{
+            borderStyle: questionBorderStyle === 'none' ? 'none' : questionBorderStyle,
+            borderWidth: questionBorderStyle === 'none' ? '0' : questionBorderWidth,
+            borderColor: questionBorderColor,
             ...(questionBackgroundPattern && questionBackgroundPattern !== 'none'
               ? getPatternById(questionBackgroundPattern)?.getCSS(questionBgColor || '#ffffff')
               : { backgroundColor: questionBgColor || undefined }),
@@ -242,15 +270,15 @@ export function EditableFlipCard({
           }}
         >
           {/* Background Image */}
-          {backgroundImage && (
+          {(questionBackgroundImage || backgroundImage) && (
             <div
               className='absolute inset-0 z-0'
               style={{
-                backgroundImage: `url(${backgroundImage})`,
+                backgroundImage: `url(${questionBackgroundImage || backgroundImage})`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
                 backgroundRepeat: 'no-repeat',
-                opacity: backgroundImageOpacity,
+                opacity: questionBackgroundImageOpacity !== undefined ? questionBackgroundImageOpacity : backgroundImageOpacity,
               }}
             />
           )}
@@ -353,10 +381,13 @@ export function EditableFlipCard({
       >
         <div
           className={cn(
-            'w-full h-full rounded-xl border shadow hover:shadow-lg transition-shadow min-h-[200px] relative overflow-hidden',
+            'w-full h-full rounded-xl shadow hover:shadow-lg transition-shadow min-h-[200px] relative overflow-hidden',
             isEditingAnswer && 'ring-2 ring-primary ring-offset-2'
           )}
           style={{
+            borderStyle: answerBorderStyle === 'none' ? 'none' : answerBorderStyle,
+            borderWidth: answerBorderStyle === 'none' ? '0' : answerBorderWidth,
+            borderColor: answerBorderColor,
             ...(answerBackgroundPattern && answerBackgroundPattern !== 'none'
               ? getPatternById(answerBackgroundPattern)?.getCSS(answerBgColor || '#f3f4f6')
               : { backgroundColor: answerBgColor || undefined }),
@@ -365,15 +396,15 @@ export function EditableFlipCard({
           }}
         >
           {/* Background Image */}
-          {backgroundImage && (
+          {(answerBackgroundImage || backgroundImage) && (
             <div
               className='absolute inset-0 z-0'
               style={{
-                backgroundImage: `url(${backgroundImage})`,
+                backgroundImage: `url(${answerBackgroundImage || backgroundImage})`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
                 backgroundRepeat: 'no-repeat',
-                opacity: backgroundImageOpacity,
+                opacity: answerBackgroundImageOpacity !== undefined ? answerBackgroundImageOpacity : backgroundImageOpacity,
               }}
             />
           )}

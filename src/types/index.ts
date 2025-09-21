@@ -13,11 +13,22 @@ export interface FlashcardSetConfig {
   questionFontSize?: string;
   questionFontFamily?: string;
   questionBackgroundPattern?: string;
+  questionBackgroundImage?: string;
+  questionBackgroundImageOpacity?: number;
+  questionBorderStyle?: string;
+  questionBorderWidth?: string;
+  questionBorderColor?: string;
   answerBgColor?: string;
   answerFgColor?: string;
   answerFontSize?: string;
   answerFontFamily?: string;
   answerBackgroundPattern?: string;
+  answerBackgroundImage?: string;
+  answerBackgroundImageOpacity?: number;
+  answerBorderStyle?: string;
+  answerBorderWidth?: string;
+  answerBorderColor?: string;
+  // Legacy fields for backward compatibility
   backgroundImage?: string;
   backgroundImageOpacity?: number;
 }

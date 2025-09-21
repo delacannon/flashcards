@@ -24,24 +24,14 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import {
-  Plus,
-  Edit2,
-  Trash2,
-  Copy,
-  ArrowLeftRight,
-  ArrowUpDown,
-  Play,
-} from 'lucide-react';
+import { Plus, Edit2, Trash2, Copy, Play } from 'lucide-react';
 import {
   FlashcardSetView,
   type FlashcardSet,
   type FlashcardSetConfig,
 } from '@/components/FlashcardSetView';
 import { PlayMode } from '@/components/PlayMode';
-import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { cn } from '@/lib/utils';
 import {
   Select,
   SelectContent,
@@ -50,11 +40,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { DebouncedColorInput } from '@/components/ui/DebouncedColorInput';
-import { StackedCard } from '@/components/ui/StackedCard';
 import { PatternGallery } from '@/components/ui/PatternGallery';
 import { getPatternById } from '@/lib/patterns';
 import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { aiService } from '@/services/ai';
 
 function App() {
@@ -88,10 +78,28 @@ function App() {
     useState<string>('none');
   const [configCardCount, setConfigCardCount] = useState<number>(5);
   const [configAiPrompt, setConfigAiPrompt] = useState<string>('');
-  const [configBackgroundImage, setConfigBackgroundImage] =
+  // Question side background image
+  const [configQuestionBackgroundImage, setConfigQuestionBackgroundImage] =
     useState<string>('');
-  const [configBackgroundImageOpacity, setConfigBackgroundImageOpacity] =
-    useState<number>(0.3);
+  const [
+    configQuestionBackgroundImageOpacity,
+    setConfigQuestionBackgroundImageOpacity,
+  ] = useState<number>(0.3);
+  // Answer side background image
+  const [configAnswerBackgroundImage, setConfigAnswerBackgroundImage] =
+    useState<string>('');
+  const [
+    configAnswerBackgroundImageOpacity,
+    setConfigAnswerBackgroundImageOpacity,
+  ] = useState<number>(0.3);
+  // Question side border styles
+  const [configQuestionBorderStyle, setConfigQuestionBorderStyle] = useState<string>('solid');
+  const [configQuestionBorderWidth, setConfigQuestionBorderWidth] = useState<string>('1px');
+  const [configQuestionBorderColor, setConfigQuestionBorderColor] = useState<string>('#e5e7eb');
+  // Answer side border styles
+  const [configAnswerBorderStyle, setConfigAnswerBorderStyle] = useState<string>('solid');
+  const [configAnswerBorderWidth, setConfigAnswerBorderWidth] = useState<string>('1px');
+  const [configAnswerBorderColor, setConfigAnswerBorderColor] = useState<string>('#e5e7eb');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [setToDelete, setSetToDelete] = useState<string | null>(null);
 
@@ -127,8 +135,35 @@ function App() {
       setConfigAnswerFontFamily(set.config?.answerFontFamily || 'Inter');
       setConfigQuestionPattern(set.config?.questionBackgroundPattern || 'none');
       setConfigAnswerPattern(set.config?.answerBackgroundPattern || 'none');
-      setConfigBackgroundImage(set.config?.backgroundImage || '');
-      setConfigBackgroundImageOpacity(set.config?.backgroundImageOpacity || 0.3);
+      // Handle legacy background image - apply to both sides if exists
+      if (set.config?.backgroundImage) {
+        setConfigQuestionBackgroundImage(set.config.backgroundImage);
+        setConfigAnswerBackgroundImage(set.config.backgroundImage);
+        setConfigQuestionBackgroundImageOpacity(
+          set.config.backgroundImageOpacity || 0.3
+        );
+        setConfigAnswerBackgroundImageOpacity(
+          set.config.backgroundImageOpacity || 0.3
+        );
+      } else {
+        setConfigQuestionBackgroundImage(
+          set.config?.questionBackgroundImage || ''
+        );
+        setConfigAnswerBackgroundImage(set.config?.answerBackgroundImage || '');
+        setConfigQuestionBackgroundImageOpacity(
+          set.config?.questionBackgroundImageOpacity || 0.3
+        );
+        setConfigAnswerBackgroundImageOpacity(
+          set.config?.answerBackgroundImageOpacity || 0.3
+        );
+      }
+      // Set border styles
+      setConfigQuestionBorderStyle(set.config?.questionBorderStyle || 'solid');
+      setConfigQuestionBorderWidth(set.config?.questionBorderWidth || '1px');
+      setConfigQuestionBorderColor(set.config?.questionBorderColor || '#e5e7eb');
+      setConfigAnswerBorderStyle(set.config?.answerBorderStyle || 'solid');
+      setConfigAnswerBorderWidth(set.config?.answerBorderWidth || '1px');
+      setConfigAnswerBorderColor(set.config?.answerBorderColor || '#e5e7eb');
       setIsModalOpen(true);
       setIsCreatingSet(false);
     }
@@ -185,8 +220,10 @@ function App() {
     setConfigAnswerPattern('none');
     setConfigCardCount(5);
     setConfigAiPrompt('');
-    setConfigBackgroundImage('');
-    setConfigBackgroundImageOpacity(0.3);
+    setConfigQuestionBackgroundImage('');
+    setConfigQuestionBackgroundImageOpacity(0.3);
+    setConfigAnswerBackgroundImage('');
+    setConfigAnswerBackgroundImageOpacity(0.3);
     setIsCreatingSet(true);
     setEditingSetId(null);
     setIsModalOpen(true);
@@ -206,8 +243,16 @@ function App() {
       answerFontSize: configAnswerFontSize,
       answerFontFamily: configAnswerFontFamily,
       answerBackgroundPattern: configAnswerPattern,
-      backgroundImage: configBackgroundImage,
-      backgroundImageOpacity: configBackgroundImageOpacity,
+      questionBackgroundImage: configQuestionBackgroundImage,
+      questionBackgroundImageOpacity: configQuestionBackgroundImageOpacity,
+      answerBackgroundImage: configAnswerBackgroundImage,
+      answerBackgroundImageOpacity: configAnswerBackgroundImageOpacity,
+      questionBorderStyle: configQuestionBorderStyle,
+      questionBorderWidth: configQuestionBorderWidth,
+      questionBorderColor: configQuestionBorderColor,
+      answerBorderStyle: configAnswerBorderStyle,
+      answerBorderWidth: configAnswerBorderWidth,
+      answerBorderColor: configAnswerBorderColor,
       aiPrompt: configAiPrompt,
     };
 
@@ -392,7 +437,7 @@ function App() {
         )}
 
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <DialogContent className='max-w-5xl overflow-y-auto' noOverlay>
+          <DialogContent className='max-w-6xl overflow-y-auto' noOverlay>
             <DialogHeader>
               <DialogTitle>
                 {isCreatingSet ? 'Create New Set' : 'Edit Set'}
@@ -413,130 +458,67 @@ function App() {
                 />
               </div>
 
-              {/* AI Generation (only for creating) */}
+              {/* AI Generation and Card Count - Side by Side (only for creating) */}
               {isCreatingSet && (
-                <div className='border rounded-lg p-4'>
-                  <h4 className='text-sm font-semibold mb-3'>
-                    AI Generation (Optional)
-                  </h4>
-                  <div className='space-y-3'>
-                    <Textarea
-                      id='ai-prompt'
-                      placeholder='e.g., "Spanish vocabulary for beginners", "Chemistry periodic table elements", "World War II key events"'
-                      value={configAiPrompt}
-                      onChange={(e) => setConfigAiPrompt(e.target.value)}
-                      className='min-h-[80px]'
-                    />
+                <div className='grid grid-cols-2 gap-4'>
+                  {/* AI Generation */}
+                  <div className='border rounded-lg p-4'>
+                    <h4 className='text-sm font-semibold mb-3'>
+                      AI Generation (Optional)
+                    </h4>
+                    <div className='space-y-3'>
+                      <Textarea
+                        id='ai-prompt'
+                        placeholder='e.g., "Spanish vocabulary for beginners", "Chemistry periodic table elements", "World War II key events"'
+                        value={configAiPrompt}
+                        onChange={(e) => setConfigAiPrompt(e.target.value)}
+                        className='min-h-[80px]'
+                      />
 
-                    {!aiService.isConfigured() && (
-                      <p className='text-xs text-amber-600'>
-                        ⚠️ OpenAI API key not configured. Add
-                        VITE_OPENAI_API_KEY to .env file to enable AI
-                        generation.
-                      </p>
-                    )}
+                      {!aiService.isConfigured() && (
+                        <p className='text-xs text-amber-600'>
+                          ⚠️ OpenAI API key not configured. Add
+                          VITE_OPENAI_API_KEY to .env file to enable AI
+                          generation.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Number of Cards */}
+                  <div className='border rounded-lg p-4'>
+                    <h4 className='text-sm font-semibold mb-3'>
+                      Number of Cards
+                    </h4>
+                    <div className='space-y-3'>
+                      <div className='flex items-center justify-between'>
+                        <Label htmlFor='card-count' className='text-xs'>
+                          {configAiPrompt ? 'Cards to generate' : 'Default cards'}
+                        </Label>
+                        <span className='text-sm font-medium text-muted-foreground'>
+                          {configCardCount}{' '}
+                          {configCardCount === 1 ? 'card' : 'cards'}
+                        </span>
+                      </div>
+                      <Slider
+                        id='card-count'
+                        min={5}
+                        max={115}
+                        step={5}
+                        value={[configCardCount]}
+                        onValueChange={(value) => setConfigCardCount(value[0])}
+                        className='w-full'
+                      />
+                      <div className='flex justify-between text-xs text-muted-foreground'>
+                        <span>5</span>
+                        <span>115</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
 
-              {/* Card Count and Background Image - Side by Side */}
-              <div className={isCreatingSet ? 'grid grid-cols-2 gap-4' : ''}>
-                {/* Card Count (only for creating) */}
-                {isCreatingSet && (
-                  <div className='border rounded-lg p-4'>
-                      <h4 className='text-sm font-semibold mb-3'>
-                        Number of Cards
-                      </h4>
-                      <div className='space-y-3'>
-                        <div className='flex items-center justify-between'>
-                          <Label htmlFor='card-count' className='text-xs'>
-                            {configAiPrompt
-                              ? 'Cards to generate'
-                              : 'Default cards'}
-                          </Label>
-                          <span className='text-sm font-medium text-muted-foreground'>
-                            {configCardCount}{' '}
-                            {configCardCount === 1 ? 'card' : 'cards'}
-                          </span>
-                        </div>
-                        <Slider
-                          id='card-count'
-                          min={5}
-                          max={115}
-                          step={5}
-                          value={[configCardCount]}
-                          onValueChange={(value) => setConfigCardCount(value[0])}
-                          className='w-full'
-                        />
-                        <div className='flex justify-between text-xs text-muted-foreground'>
-                          <span>5</span>
-                          <span>115</span>
-                        </div>
-                      </div>
-                    </div>
-                )}
-
-                {/* Background Image (for both create and edit) */}
-                <div className='border rounded-lg p-4'>
-                      <h4 className='text-sm font-semibold mb-3'>Card Background</h4>
-                      <div className='space-y-3'>
-                        <div>
-                          <Input
-                            id='background-image'
-                            type='url'
-                            placeholder='https://example.com/image.jpg'
-                            value={configBackgroundImage}
-                            onChange={(e) => setConfigBackgroundImage(e.target.value)}
-                            className='text-sm'
-                          />
-                          <p className='text-xs text-muted-foreground mt-1'>
-                            Image URL for card backgrounds
-                          </p>
-                        </div>
-                        {configBackgroundImage && (
-                          <div className='space-y-2'>
-                            <div
-                              className='h-16 rounded-lg border bg-cover bg-center bg-no-repeat relative overflow-hidden'
-                              style={{
-                                backgroundImage: `url(${configBackgroundImage})`,
-                                opacity: configBackgroundImageOpacity,
-                              }}
-                            />
-                            <div>
-                              <div className='flex items-center justify-between mb-1'>
-                                <Label className='text-xs'>Opacity</Label>
-                                <span className='text-xs text-muted-foreground'>
-                                  {Math.round(configBackgroundImageOpacity * 100)}%
-                                </span>
-                              </div>
-                              <Slider
-                                min={0}
-                                max={100}
-                                step={5}
-                                value={[configBackgroundImageOpacity * 100]}
-                                onValueChange={(value) => setConfigBackgroundImageOpacity(value[0] / 100)}
-                                className='w-full'
-                              />
-                            </div>
-                            <Button
-                              type='button'
-                              variant='outline'
-                              size='sm'
-                              className='w-full text-xs'
-                              onClick={() => {
-                                setConfigBackgroundImage('');
-                                setConfigBackgroundImageOpacity(0.3);
-                              }}
-                            >
-                              Clear
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-              {/* Flip Direction */}
+              {/* Flip Direction 
               <div className='border rounded-lg p-4'>
                 <h4 className='text-sm font-semibold mb-3'>Flip Animation</h4>
                 <div className='flex items-center justify-between'>
@@ -569,230 +551,543 @@ function App() {
                     </span>
                   </div>
                 </div>
-              </div>
+              </div>*/}
 
-              {/* Card Configuration Grid */}
-              <div className='grid grid-cols-2 gap-6'>
-                {/* Question Side Configuration */}
-                <div className='border rounded-lg p-4'>
-                  <h4 className='text-sm font-semibold mb-4 flex items-center gap-2'>
-                    <span className='bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs'>
-                      Q
-                    </span>
-                    Question Side
-                  </h4>
+              {/* Card Configuration Tabs */}
+              <Tabs defaultValue='question' className='w-full'>
+                <TabsList className='grid w-full grid-cols-2'>
+                  <TabsTrigger value='question'>Question Side</TabsTrigger>
+                  <TabsTrigger value='answer'>Answer Side</TabsTrigger>
+                </TabsList>
 
-                  <div className='space-y-4'>
-                    {/* Colors */}
-                    <div className='grid grid-cols-2 gap-3'>
-                      <DebouncedColorInput
-                        label='Background'
-                        value={configQuestionBgColor}
-                        onChange={setConfigQuestionBgColor}
-                      />
-                      <DebouncedColorInput
-                        label='Text Color'
-                        value={configQuestionFgColor}
-                        onChange={setConfigQuestionFgColor}
-                      />
-                    </div>
-
-                    {/* Typography */}
-                    <div className='grid grid-cols-2 gap-3'>
+                {/* Question Side Tab */}
+                <TabsContent value='question' className='space-y-4 mt-4'>
+                  <div className='border rounded-lg p-4'>
+                    <h4 className='text-sm font-semibold mb-3'>
+                      Background Image
+                    </h4>
+                    <div className='space-y-3'>
                       <div>
-                        <Label className='text-xs'>Font Family</Label>
-                        <Select
-                          value={configQuestionFontFamily}
-                          onValueChange={setConfigQuestionFontFamily}
-                        >
-                          <SelectTrigger className='mt-1'>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value='Inter'>Inter</SelectItem>
-                            <SelectItem value='Roboto'>Roboto</SelectItem>
-                            <SelectItem value='Open Sans'>Open Sans</SelectItem>
-                            <SelectItem value='Poppins'>Poppins</SelectItem>
-                            <SelectItem value='Montserrat'>
-                              Montserrat
-                            </SelectItem>
-                            <SelectItem value='Lato'>Lato</SelectItem>
-                            <SelectItem value='Raleway'>Raleway</SelectItem>
-                            <SelectItem value='Playfair Display'>
-                              Playfair Display
-                            </SelectItem>
-                            <SelectItem value='Merriweather'>
-                              Merriweather
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label className='text-xs'>Font Size</Label>
-                        <Select
-                          value={configQuestionFontSize}
-                          onValueChange={setConfigQuestionFontSize}
-                        >
-                          <SelectTrigger className='mt-1'>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value='12px'>Small (12px)</SelectItem>
-                            <SelectItem value='14px'>Normal (14px)</SelectItem>
-                            <SelectItem value='16px'>Medium (16px)</SelectItem>
-                            <SelectItem value='18px'>Large (18px)</SelectItem>
-                            <SelectItem value='20px'>
-                              Extra Large (20px)
-                            </SelectItem>
-                            <SelectItem value='24px'>Huge (24px)</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    {/* Pattern Selection */}
-                    <PatternGallery
-                      label='Background Pattern'
-                      selectedPattern={configQuestionPattern}
-                      onSelectPattern={setConfigQuestionPattern}
-                      baseColor={configQuestionBgColor}
-                    />
-
-                    {/* Preview */}
-                    <div
-                      className='rounded-lg border p-4 min-h-[100px] flex items-center justify-center'
-                      style={{
-                        ...(configQuestionPattern &&
-                        configQuestionPattern !== 'none'
-                          ? getPatternById(configQuestionPattern)?.getCSS(
-                              configQuestionBgColor
-                            )
-                          : { backgroundColor: configQuestionBgColor }),
-                        color: configQuestionFgColor,
-                        fontFamily: configQuestionFontFamily,
-                        fontSize: configQuestionFontSize,
-                      }}
-                    >
-                      <div className='text-center'>
-                        <p className='opacity-70 text-xs mb-1'>
-                          Question Preview
+                        <Input
+                          id='question-background-image'
+                          type='url'
+                          placeholder='https://example.com/image.jpg'
+                          value={configQuestionBackgroundImage}
+                          onChange={(e) =>
+                            setConfigQuestionBackgroundImage(e.target.value)
+                          }
+                          className='text-sm'
+                        />
+                        <p className='text-xs text-muted-foreground mt-1'>
+                          Image URL for question side background
                         </p>
-                        <p>Sample Question Text</p>
+                      </div>
+                      {configQuestionBackgroundImage && (
+                        <div className='space-y-2'>
+                          <div>
+                            <div className='flex items-center justify-between mb-1'>
+                              <Label className='text-xs'>Opacity</Label>
+                              <span className='text-xs text-muted-foreground'>
+                                {Math.round(
+                                  configQuestionBackgroundImageOpacity * 100
+                                )}
+                                %
+                              </span>
+                            </div>
+                            <Slider
+                              min={0}
+                              max={100}
+                              step={5}
+                              value={[
+                                configQuestionBackgroundImageOpacity * 100,
+                              ]}
+                              onValueChange={(value) =>
+                                setConfigQuestionBackgroundImageOpacity(
+                                  value[0] / 100
+                                )
+                              }
+                              className='w-full'
+                            />
+                          </div>
+                          <Button
+                            type='button'
+                            variant='outline'
+                            size='sm'
+                            className='w-full text-xs'
+                            onClick={() => {
+                              setConfigQuestionBackgroundImage('');
+                              setConfigQuestionBackgroundImageOpacity(0.3);
+                            }}
+                          >
+                            Clear
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Styling and Border Configuration Side by Side */}
+                  <div className='grid grid-cols-2 gap-4'>
+                    {/* Styling Section */}
+                    <div className='border rounded-lg p-4'>
+                      <h4 className='text-sm font-semibold mb-4'>Styling</h4>
+                      <div className='space-y-4'>
+                        {/* Colors */}
+                        <div className='grid grid-cols-2 gap-3'>
+                          <DebouncedColorInput
+                            label='Background'
+                            value={configQuestionBgColor}
+                            onChange={setConfigQuestionBgColor}
+                          />
+                          <DebouncedColorInput
+                            label='Text Color'
+                            value={configQuestionFgColor}
+                            onChange={setConfigQuestionFgColor}
+                          />
+                        </div>
+
+                        {/* Typography */}
+                      <div className='grid grid-cols-2 gap-3'>
+                        <div>
+                          <Label className='text-xs'>Font Family</Label>
+                          <Select
+                            value={configQuestionFontFamily}
+                            onValueChange={setConfigQuestionFontFamily}
+                          >
+                            <SelectTrigger className='mt-1'>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value='Inter'>Inter</SelectItem>
+                              <SelectItem value='Roboto'>Roboto</SelectItem>
+                              <SelectItem value='Open Sans'>
+                                Open Sans
+                              </SelectItem>
+                              <SelectItem value='Poppins'>Poppins</SelectItem>
+                              <SelectItem value='Montserrat'>
+                                Montserrat
+                              </SelectItem>
+                              <SelectItem value='Lato'>Lato</SelectItem>
+                              <SelectItem value='Raleway'>Raleway</SelectItem>
+                              <SelectItem value='Playfair Display'>
+                                Playfair Display
+                              </SelectItem>
+                              <SelectItem value='Merriweather'>
+                                Merriweather
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label className='text-xs'>Font Size</Label>
+                          <Select
+                            value={configQuestionFontSize}
+                            onValueChange={setConfigQuestionFontSize}
+                          >
+                            <SelectTrigger className='mt-1'>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value='12px'>Small (12px)</SelectItem>
+                              <SelectItem value='14px'>
+                                Normal (14px)
+                              </SelectItem>
+                              <SelectItem value='16px'>
+                                Medium (16px)
+                              </SelectItem>
+                              <SelectItem value='18px'>Large (18px)</SelectItem>
+                              <SelectItem value='20px'>
+                                Extra Large (20px)
+                              </SelectItem>
+                              <SelectItem value='24px'>Huge (24px)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      {/* Pattern Selection */}
+                      <PatternGallery
+                        label='Background Pattern'
+                        selectedPattern={configQuestionPattern}
+                        onSelectPattern={setConfigQuestionPattern}
+                        baseColor={configQuestionBgColor}
+                      />
+
+                      {/* Preview */}
+                      <div
+                        className='rounded-lg min-h-[100px] relative overflow-hidden'
+                        style={{
+                          borderStyle: configQuestionBorderStyle === 'none' ? 'none' : configQuestionBorderStyle,
+                          borderWidth: configQuestionBorderStyle === 'none' ? '0' : configQuestionBorderWidth,
+                          borderColor: configQuestionBorderColor,
+                          ...(configQuestionPattern &&
+                          configQuestionPattern !== 'none'
+                            ? getPatternById(configQuestionPattern)?.getCSS(
+                                configQuestionBgColor
+                              )
+                            : { backgroundColor: configQuestionBgColor }),
+                        }}
+                      >
+                        {/* Background Image Layer */}
+                        {configQuestionBackgroundImage && (
+                          <div
+                            className='absolute inset-0 z-0'
+                            style={{
+                              backgroundImage: `url(${configQuestionBackgroundImage})`,
+                              backgroundSize: 'cover',
+                              backgroundPosition: 'center',
+                              backgroundRepeat: 'no-repeat',
+                              opacity: configQuestionBackgroundImageOpacity,
+                            }}
+                          />
+                        )}
+                        {/* Content Layer */}
+                        <div
+                          className='relative z-10 p-4 min-h-[100px] flex items-center justify-center'
+                          style={{
+                            color: configQuestionFgColor,
+                            fontFamily: configQuestionFontFamily,
+                            fontSize: configQuestionFontSize,
+                          }}
+                        >
+                          <div className='text-center'>
+                            <p className='opacity-70 text-xs mb-1'>
+                              Question Preview
+                            </p>
+                            <p>Sample Question Text</p>
+                          </div>
+                        </div>
+                      </div>
+                      </div>
+                    </div>
+
+                    {/* Border Style Configuration for Question Side */}
+                    <div className='border rounded-lg p-4'>
+                    <h4 className='text-sm font-semibold mb-3'>Border Style</h4>
+                    <div className='space-y-3'>
+                      {/* Border Style */}
+                      <div>
+                        <Label htmlFor='question-border-style' className='text-xs'>
+                          Border Style
+                        </Label>
+                        <Select
+                          value={configQuestionBorderStyle}
+                          onValueChange={setConfigQuestionBorderStyle}
+                        >
+                          <SelectTrigger id='question-border-style' className='mt-1'>
+                            <SelectValue placeholder='Select border style' />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value='none'>None</SelectItem>
+                            <SelectItem value='solid'>Solid</SelectItem>
+                            <SelectItem value='dashed'>Dashed</SelectItem>
+                            <SelectItem value='dotted'>Dotted</SelectItem>
+                            <SelectItem value='double'>Double</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Border Width */}
+                      {configQuestionBorderStyle !== 'none' && (
+                        <>
+                          <div>
+                            <div className='flex items-center justify-between mb-1'>
+                              <Label htmlFor='question-border-width' className='text-xs'>
+                                Border Width
+                              </Label>
+                              <span className='text-xs text-muted-foreground'>
+                                {configQuestionBorderWidth}
+                              </span>
+                            </div>
+                            <Slider
+                              id='question-border-width'
+                              min={0}
+                              max={8}
+                              step={1}
+                              value={[parseInt(configQuestionBorderWidth)]}
+                              onValueChange={(value) =>
+                                setConfigQuestionBorderWidth(`${value[0]}px`)
+                              }
+                              className='w-full'
+                            />
+                          </div>
+
+                          {/* Border Color */}
+                          <DebouncedColorInput
+                            label='Border Color'
+                            value={configQuestionBorderColor}
+                            onChange={setConfigQuestionBorderColor}
+                          />
+                        </>
+                      )}
                       </div>
                     </div>
                   </div>
-                </div>
+                </TabsContent>
 
-                {/* Answer Side Configuration */}
-                <div className='border rounded-lg p-4'>
-                  <h4 className='text-sm font-semibold mb-4 flex items-center gap-2'>
-                    <span className='bg-green-100 text-green-700 px-2 py-1 rounded text-xs'>
-                      A
-                    </span>
-                    Answer Side
-                  </h4>
-
-                  <div className='space-y-4'>
-                    {/* Colors */}
-                    <div className='grid grid-cols-2 gap-3'>
-                      <DebouncedColorInput
-                        label='Background'
-                        value={configAnswerBgColor}
-                        onChange={setConfigAnswerBgColor}
-                      />
-                      <DebouncedColorInput
-                        label='Text Color'
-                        value={configAnswerFgColor}
-                        onChange={setConfigAnswerFgColor}
-                      />
-                    </div>
-
-                    {/* Typography */}
-                    <div className='grid grid-cols-2 gap-3'>
+                {/* Answer Side Tab */}
+                <TabsContent value='answer' className='space-y-4 mt-4'>
+                  <div className='border rounded-lg p-4'>
+                    <h4 className='text-sm font-semibold mb-3'>
+                      Background Image
+                    </h4>
+                    <div className='space-y-3'>
                       <div>
-                        <Label className='text-xs'>Font Family</Label>
-                        <Select
-                          value={configAnswerFontFamily}
-                          onValueChange={setConfigAnswerFontFamily}
-                        >
-                          <SelectTrigger className='mt-1'>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value='Inter'>Inter</SelectItem>
-                            <SelectItem value='Roboto'>Roboto</SelectItem>
-                            <SelectItem value='Open Sans'>Open Sans</SelectItem>
-                            <SelectItem value='Poppins'>Poppins</SelectItem>
-                            <SelectItem value='Montserrat'>
-                              Montserrat
-                            </SelectItem>
-                            <SelectItem value='Lato'>Lato</SelectItem>
-                            <SelectItem value='Raleway'>Raleway</SelectItem>
-                            <SelectItem value='Playfair Display'>
-                              Playfair Display
-                            </SelectItem>
-                            <SelectItem value='Merriweather'>
-                              Merriweather
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label className='text-xs'>Font Size</Label>
-                        <Select
-                          value={configAnswerFontSize}
-                          onValueChange={setConfigAnswerFontSize}
-                        >
-                          <SelectTrigger className='mt-1'>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value='12px'>Small (12px)</SelectItem>
-                            <SelectItem value='14px'>Normal (14px)</SelectItem>
-                            <SelectItem value='16px'>Medium (16px)</SelectItem>
-                            <SelectItem value='18px'>Large (18px)</SelectItem>
-                            <SelectItem value='20px'>
-                              Extra Large (20px)
-                            </SelectItem>
-                            <SelectItem value='24px'>Huge (24px)</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    {/* Pattern Selection */}
-                    <PatternGallery
-                      label='Background Pattern'
-                      selectedPattern={configAnswerPattern}
-                      onSelectPattern={setConfigAnswerPattern}
-                      baseColor={configAnswerBgColor}
-                    />
-
-                    {/* Preview */}
-                    <div
-                      className='rounded-lg border p-4 min-h-[100px] flex items-center justify-center'
-                      style={{
-                        ...(configAnswerPattern &&
-                        configAnswerPattern !== 'none'
-                          ? getPatternById(configAnswerPattern)?.getCSS(
-                              configAnswerBgColor
-                            )
-                          : { backgroundColor: configAnswerBgColor }),
-                        color: configAnswerFgColor,
-                        fontFamily: configAnswerFontFamily,
-                        fontSize: configAnswerFontSize,
-                      }}
-                    >
-                      <div className='text-center'>
-                        <p className='opacity-70 text-xs mb-1'>
-                          Answer Preview
+                        <Input
+                          id='answer-background-image'
+                          type='url'
+                          placeholder='https://example.com/image.jpg'
+                          value={configAnswerBackgroundImage}
+                          onChange={(e) =>
+                            setConfigAnswerBackgroundImage(e.target.value)
+                          }
+                          className='text-sm'
+                        />
+                        <p className='text-xs text-muted-foreground mt-1'>
+                          Image URL for answer side background
                         </p>
-                        <p>Sample Answer Text</p>
+                      </div>
+                      {configAnswerBackgroundImage && (
+                        <div className='space-y-2'>
+                          <div>
+                            <div className='flex items-center justify-between mb-1'>
+                              <Label className='text-xs'>Opacity</Label>
+                              <span className='text-xs text-muted-foreground'>
+                                {Math.round(
+                                  configAnswerBackgroundImageOpacity * 100
+                                )}
+                                %
+                              </span>
+                            </div>
+                            <Slider
+                              min={0}
+                              max={100}
+                              step={5}
+                              value={[configAnswerBackgroundImageOpacity * 100]}
+                              onValueChange={(value) =>
+                                setConfigAnswerBackgroundImageOpacity(
+                                  value[0] / 100
+                                )
+                              }
+                              className='w-full'
+                            />
+                          </div>
+                          <Button
+                            type='button'
+                            variant='outline'
+                            size='sm'
+                            className='w-full text-xs'
+                            onClick={() => {
+                              setConfigAnswerBackgroundImage('');
+                              setConfigAnswerBackgroundImageOpacity(0.3);
+                            }}
+                          >
+                            Clear
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Styling and Border Configuration Side by Side */}
+                  <div className='grid grid-cols-2 gap-4'>
+                    {/* Styling Section */}
+                    <div className='border rounded-lg p-4'>
+                      <h4 className='text-sm font-semibold mb-4'>Styling</h4>
+                      <div className='space-y-4'>
+                        {/* Colors */}
+                        <div className='grid grid-cols-2 gap-3'>
+                          <DebouncedColorInput
+                            label='Background'
+                            value={configAnswerBgColor}
+                            onChange={setConfigAnswerBgColor}
+                          />
+                          <DebouncedColorInput
+                            label='Text Color'
+                            value={configAnswerFgColor}
+                            onChange={setConfigAnswerFgColor}
+                          />
+                        </div>
+
+                        {/* Typography */}
+                      <div className='grid grid-cols-2 gap-3'>
+                        <div>
+                          <Label className='text-xs'>Font Family</Label>
+                          <Select
+                            value={configAnswerFontFamily}
+                            onValueChange={setConfigAnswerFontFamily}
+                          >
+                            <SelectTrigger className='mt-1'>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value='Inter'>Inter</SelectItem>
+                              <SelectItem value='Roboto'>Roboto</SelectItem>
+                              <SelectItem value='Open Sans'>
+                                Open Sans
+                              </SelectItem>
+                              <SelectItem value='Poppins'>Poppins</SelectItem>
+                              <SelectItem value='Montserrat'>
+                                Montserrat
+                              </SelectItem>
+                              <SelectItem value='Lato'>Lato</SelectItem>
+                              <SelectItem value='Raleway'>Raleway</SelectItem>
+                              <SelectItem value='Playfair Display'>
+                                Playfair Display
+                              </SelectItem>
+                              <SelectItem value='Merriweather'>
+                                Merriweather
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label className='text-xs'>Font Size</Label>
+                          <Select
+                            value={configAnswerFontSize}
+                            onValueChange={setConfigAnswerFontSize}
+                          >
+                            <SelectTrigger className='mt-1'>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value='12px'>Small (12px)</SelectItem>
+                              <SelectItem value='14px'>
+                                Normal (14px)
+                              </SelectItem>
+                              <SelectItem value='16px'>
+                                Medium (16px)
+                              </SelectItem>
+                              <SelectItem value='18px'>Large (18px)</SelectItem>
+                              <SelectItem value='20px'>
+                                Extra Large (20px)
+                              </SelectItem>
+                              <SelectItem value='24px'>Huge (24px)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      {/* Pattern Selection */}
+                      <PatternGallery
+                        label='Background Pattern'
+                        selectedPattern={configAnswerPattern}
+                        onSelectPattern={setConfigAnswerPattern}
+                        baseColor={configAnswerBgColor}
+                      />
+
+                      {/* Preview */}
+                      <div
+                        className='rounded-lg min-h-[100px] relative overflow-hidden'
+                        style={{
+                          borderStyle: configAnswerBorderStyle === 'none' ? 'none' : configAnswerBorderStyle,
+                          borderWidth: configAnswerBorderStyle === 'none' ? '0' : configAnswerBorderWidth,
+                          borderColor: configAnswerBorderColor,
+                          ...(configAnswerPattern &&
+                          configAnswerPattern !== 'none'
+                            ? getPatternById(configAnswerPattern)?.getCSS(
+                                configAnswerBgColor
+                              )
+                            : { backgroundColor: configAnswerBgColor }),
+                        }}
+                      >
+                        {/* Background Image Layer */}
+                        {configAnswerBackgroundImage && (
+                          <div
+                            className='absolute inset-0 z-0'
+                            style={{
+                              backgroundImage: `url(${configAnswerBackgroundImage})`,
+                              backgroundSize: 'cover',
+                              backgroundPosition: 'center',
+                              backgroundRepeat: 'no-repeat',
+                              opacity: configAnswerBackgroundImageOpacity,
+                            }}
+                          />
+                        )}
+                        {/* Content Layer */}
+                        <div
+                          className='relative z-10 p-4 min-h-[100px] flex items-center justify-center'
+                          style={{
+                            color: configAnswerFgColor,
+                            fontFamily: configAnswerFontFamily,
+                            fontSize: configAnswerFontSize,
+                          }}
+                        >
+                          <div className='text-center'>
+                            <p className='opacity-70 text-xs mb-1'>
+                              Answer Preview
+                            </p>
+                            <p>Sample Answer Text</p>
+                          </div>
+                        </div>
+                      </div>
+                      </div>
+                    </div>
+
+                    {/* Border Style Configuration for Answer Side */}
+                    <div className='border rounded-lg p-4'>
+                    <h4 className='text-sm font-semibold mb-3'>Border Style</h4>
+                    <div className='space-y-3'>
+                      {/* Border Style */}
+                      <div>
+                        <Label htmlFor='answer-border-style' className='text-xs'>
+                          Border Style
+                        </Label>
+                        <Select
+                          value={configAnswerBorderStyle}
+                          onValueChange={setConfigAnswerBorderStyle}
+                        >
+                          <SelectTrigger id='answer-border-style' className='mt-1'>
+                            <SelectValue placeholder='Select border style' />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value='none'>None</SelectItem>
+                            <SelectItem value='solid'>Solid</SelectItem>
+                            <SelectItem value='dashed'>Dashed</SelectItem>
+                            <SelectItem value='dotted'>Dotted</SelectItem>
+                            <SelectItem value='double'>Double</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Border Width */}
+                      {configAnswerBorderStyle !== 'none' && (
+                        <>
+                          <div>
+                            <div className='flex items-center justify-between mb-1'>
+                              <Label htmlFor='answer-border-width' className='text-xs'>
+                                Border Width
+                              </Label>
+                              <span className='text-xs text-muted-foreground'>
+                                {configAnswerBorderWidth}
+                              </span>
+                            </div>
+                            <Slider
+                              id='answer-border-width'
+                              min={0}
+                              max={8}
+                              step={1}
+                              value={[parseInt(configAnswerBorderWidth)]}
+                              onValueChange={(value) =>
+                                setConfigAnswerBorderWidth(`${value[0]}px`)
+                              }
+                              className='w-full'
+                            />
+                          </div>
+
+                          {/* Border Color */}
+                          <DebouncedColorInput
+                            label='Border Color'
+                            value={configAnswerBorderColor}
+                            onChange={setConfigAnswerBorderColor}
+                          />
+                        </>
+                      )}
                       </div>
                     </div>
                   </div>
-                </div>
-              </div>
+                </TabsContent>
+              </Tabs>
             </div>
             <DialogFooter>
               <Button variant='outline' onClick={handleCancel}>

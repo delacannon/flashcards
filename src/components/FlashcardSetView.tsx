@@ -640,8 +640,18 @@ export function FlashcardSetView({
                   answerFontSize={set.config?.answerFontSize}
                   answerFontFamily={set.config?.answerFontFamily}
                   answerBackgroundPattern={set.config?.answerBackgroundPattern}
+                  questionBackgroundImage={set.config?.questionBackgroundImage}
+                  questionBackgroundImageOpacity={set.config?.questionBackgroundImageOpacity}
+                  answerBackgroundImage={set.config?.answerBackgroundImage}
+                  answerBackgroundImageOpacity={set.config?.answerBackgroundImageOpacity}
                   backgroundImage={set.config?.backgroundImage}
                   backgroundImageOpacity={set.config?.backgroundImageOpacity}
+                  questionBorderStyle={set.config?.questionBorderStyle}
+                  questionBorderWidth={set.config?.questionBorderWidth}
+                  questionBorderColor={set.config?.questionBorderColor}
+                  answerBorderStyle={set.config?.answerBorderStyle}
+                  answerBorderWidth={set.config?.answerBorderWidth}
+                  answerBorderColor={set.config?.answerBorderColor}
                   onEdit={() => handleEditFlashcard(flashcard)}
                   onDelete={() => handleDeleteFlashcard(flashcard.id)}
                   onUpdateContent={handleUpdateFlashcardContent}

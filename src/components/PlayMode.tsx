@@ -240,8 +240,11 @@ export function PlayMode({ set, onExit }: PlayModeProps) {
                         }}
                       >
                         <div
-                          className='w-full h-full rounded-2xl border-2 shadow-xl flex items-center justify-center p-12 relative overflow-hidden'
+                          className='w-full h-full rounded-2xl shadow-xl flex items-center justify-center p-12 relative overflow-hidden'
                           style={{
+                            borderStyle: set.config?.questionBorderStyle === 'none' ? 'none' : (set.config?.questionBorderStyle || 'solid'),
+                            borderWidth: set.config?.questionBorderStyle === 'none' ? '0' : (set.config?.questionBorderWidth || '2px'),
+                            borderColor: set.config?.questionBorderColor || '#e5e7eb',
                             ...(set.config?.questionBackgroundPattern && set.config.questionBackgroundPattern !== 'none'
                               ? getPatternById(set.config.questionBackgroundPattern)?.getCSS(set.config?.questionBgColor || '#ffffff')
                               : { backgroundColor: set.config?.questionBgColor || '#ffffff' }),
@@ -252,15 +255,17 @@ export function PlayMode({ set, onExit }: PlayModeProps) {
                           }}
                         >
                           {/* Background Image */}
-                          {set.config?.backgroundImage && (
+                          {(set.config?.questionBackgroundImage || set.config?.backgroundImage) && (
                             <div
                               className='absolute inset-0 z-0'
                               style={{
-                                backgroundImage: `url(${set.config.backgroundImage})`,
+                                backgroundImage: `url(${set.config?.questionBackgroundImage || set.config?.backgroundImage})`,
                                 backgroundSize: 'cover',
                                 backgroundPosition: 'center',
                                 backgroundRepeat: 'no-repeat',
-                                opacity: set.config.backgroundImageOpacity || 0.3,
+                                opacity: set.config?.questionBackgroundImageOpacity !== undefined 
+                                  ? set.config.questionBackgroundImageOpacity 
+                                  : (set.config?.backgroundImageOpacity || 0.3),
                               }}
                             />
                           )}
@@ -332,8 +337,11 @@ export function PlayMode({ set, onExit }: PlayModeProps) {
                         }}
                       >
                         <div
-                          className='w-full h-full rounded-2xl border-2 shadow-xl flex items-center justify-center p-12 relative overflow-hidden'
+                          className='w-full h-full rounded-2xl shadow-xl flex items-center justify-center p-12 relative overflow-hidden'
                           style={{
+                            borderStyle: set.config?.answerBorderStyle === 'none' ? 'none' : (set.config?.answerBorderStyle || 'solid'),
+                            borderWidth: set.config?.answerBorderStyle === 'none' ? '0' : (set.config?.answerBorderWidth || '2px'),
+                            borderColor: set.config?.answerBorderColor || '#e5e7eb',
                             ...(set.config?.answerBackgroundPattern && set.config.answerBackgroundPattern !== 'none'
                               ? getPatternById(set.config.answerBackgroundPattern)?.getCSS(set.config?.answerBgColor || '#f3f4f6')
                               : { backgroundColor: set.config?.answerBgColor || '#f3f4f6' }),
@@ -343,15 +351,17 @@ export function PlayMode({ set, onExit }: PlayModeProps) {
                           }}
                         >
                           {/* Background Image */}
-                          {set.config?.backgroundImage && (
+                          {(set.config?.answerBackgroundImage || set.config?.backgroundImage) && (
                             <div
                               className='absolute inset-0 z-0'
                               style={{
-                                backgroundImage: `url(${set.config.backgroundImage})`,
+                                backgroundImage: `url(${set.config?.answerBackgroundImage || set.config?.backgroundImage})`,
                                 backgroundSize: 'cover',
                                 backgroundPosition: 'center',
                                 backgroundRepeat: 'no-repeat',
-                                opacity: set.config.backgroundImageOpacity || 0.3,
+                                opacity: set.config?.answerBackgroundImageOpacity !== undefined 
+                                  ? set.config.answerBackgroundImageOpacity 
+                                  : (set.config?.backgroundImageOpacity || 0.3),
                               }}
                             />
                           )}
