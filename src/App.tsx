@@ -53,31 +53,13 @@ import { DebouncedColorInput } from '@/components/ui/DebouncedColorInput';
 import { StackedCard } from '@/components/ui/StackedCard';
 import { PatternGallery } from '@/components/ui/PatternGallery';
 import { getPatternById } from '@/lib/patterns';
+import { Slider } from '@/components/ui/slider';
+import { Textarea } from '@/components/ui/textarea';
+import { aiService } from '@/services/ai';
 
 function App() {
   const [playingSet, setPlayingSet] = useState<FlashcardSet | null>(null);
-  const [flashcardSets, setFlashcardSets] = useState<FlashcardSet[]>([
-    {
-      id: uuidv4(),
-      name: 'My First Set',
-      flashcards: [],
-      config: {
-        flipAxis: 'Y',
-        cardTheme: 'default',
-        questionBgColor: '#ffffff',
-        questionFgColor: '#000000',
-        questionFontSize: '16px',
-        questionFontFamily: 'Inter',
-        questionBackgroundPattern: 'none',
-        answerBgColor: '#f3f4f6',
-        answerFgColor: '#000000',
-        answerFontSize: '16px',
-        answerFontFamily: 'Inter',
-        answerBackgroundPattern: 'none',
-      },
-      createdAt: new Date(),
-    },
-  ]);
+  const [flashcardSets, setFlashcardSets] = useState<FlashcardSet[]>([]);
   const [selectedSet, setSelectedSet] = useState<FlashcardSet | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCreatingSet, setIsCreatingSet] = useState(false);
@@ -104,6 +86,8 @@ function App() {
     useState<string>('none');
   const [configAnswerPattern, setConfigAnswerPattern] =
     useState<string>('none');
+  const [configCardCount, setConfigCardCount] = useState<number>(5);
+  const [configAiPrompt, setConfigAiPrompt] = useState<string>('');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [setToDelete, setSetToDelete] = useState<string | null>(null);
 
@@ -193,6 +177,8 @@ function App() {
     setConfigAnswerFontFamily('Inter');
     setConfigQuestionPattern('none');
     setConfigAnswerPattern('none');
+    setConfigCardCount(5);
+    setConfigAiPrompt('');
     setIsCreatingSet(true);
     setEditingSetId(null);
     setIsModalOpen(true);
@@ -212,17 +198,36 @@ function App() {
       answerFontSize: configAnswerFontSize,
       answerFontFamily: configAnswerFontFamily,
       answerBackgroundPattern: configAnswerPattern,
+      aiPrompt: configAiPrompt,
     };
 
     if (isCreatingSet) {
+      // If AI prompt is provided, create empty set and let FlashcardSetView handle generation
+      const flashcards = configAiPrompt
+        ? []
+        : Array.from({ length: configCardCount }, (_, i) => ({
+            id: uuidv4(),
+            question: `Question card ${i + 1}`,
+            answer: `Answer card ${i + 1}`,
+          }));
+
       const newSet: FlashcardSet = {
         id: uuidv4(),
         name: inputValue || 'Untitled Set',
-        flashcards: [],
-        config,
+        flashcards,
+        config: {
+          ...config,
+          cardCount: configCardCount, // Pass card count for AI generation
+        } as FlashcardSetConfig,
         createdAt: new Date(),
       };
       setFlashcardSets([...flashcardSets, newSet]);
+
+      // If AI prompt provided, immediately navigate to the set view for generation
+      if (configAiPrompt) {
+        setSelectedSet(newSet);
+        setIsModalOpen(false);
+      }
     } else if (editingSetId) {
       setFlashcardSets(
         flashcardSets.map((set) =>
@@ -397,6 +402,68 @@ function App() {
                   className='mt-2'
                 />
               </div>
+
+              {/* AI Generation or Default Cards (only for creating) */}
+              {isCreatingSet && (
+                <>
+                  {/* AI Prompt */}
+                  <div className='border rounded-lg p-4'>
+                    <h4 className='text-sm font-semibold mb-3'>
+                      AI Generation (Optional)
+                    </h4>
+                    <div className='space-y-3'>
+                      <Textarea
+                        id='ai-prompt'
+                        placeholder='e.g., "Spanish vocabulary for beginners", "Chemistry periodic table elements", "World War II key events"'
+                        value={configAiPrompt}
+                        onChange={(e) => setConfigAiPrompt(e.target.value)}
+                        className='min-h-[80px]'
+                      />
+
+                      {!aiService.isConfigured() && (
+                        <p className='text-xs text-amber-600'>
+                          ⚠️ OpenAI API key not configured. Add
+                          VITE_OPENAI_API_KEY to .env file to enable AI
+                          generation.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Card Count */}
+                  <div className='border rounded-lg p-4'>
+                    <h4 className='text-sm font-semibold mb-3'>
+                      Number of Cards
+                    </h4>
+                    <div className='space-y-3'>
+                      <div className='flex items-center justify-between'>
+                        <Label htmlFor='card-count'>
+                          {configAiPrompt
+                            ? 'Cards to generate with AI'
+                            : 'Generate cards with default content'}
+                        </Label>
+                        <span className='text-sm font-medium text-muted-foreground'>
+                          {configCardCount}{' '}
+                          {configCardCount === 1 ? 'card' : 'cards'}
+                        </span>
+                      </div>
+                      <Slider
+                        id='card-count'
+                        min={5}
+                        max={115}
+                        step={5}
+                        value={[configCardCount]}
+                        onValueChange={(value) => setConfigCardCount(value[0])}
+                        className='w-full'
+                      />
+                      <div className='flex justify-between text-xs text-muted-foreground'>
+                        <span>5</span>
+                        <span>115</span>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
 
               {/* Flip Direction */}
               <div className='border rounded-lg p-4'>
