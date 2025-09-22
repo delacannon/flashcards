@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { queryClient } from '@/lib/query-client';
+import { flashcardKeys } from '@/hooks/useFlashcards';
 
 interface AuthContextType {
   user: User | null;
@@ -34,6 +36,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const prevUserRef = React.useRef<User | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -44,6 +47,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (mounted) {
           setSession(session);
           setUser(session?.user ?? null);
+          prevUserRef.current = session?.user ?? null;
         }
       } catch (error) {
         console.error('Error fetching session:', error);
@@ -61,6 +65,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       if (!mounted) return;
       
+      const prevUser = prevUserRef.current;
+      const newUser = newSession?.user ?? null;
+      
+      // Check if user actually changed (login, logout, or different user)
+      const userChanged = prevUser?.id !== newUser?.id;
+      
       // Only update if session actually changed
       setSession((prevSession) => {
         // Check if session actually changed
@@ -70,14 +80,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return newSession;
       });
       
-      setUser((prevUser) => {
-        const newUser = newSession?.user ?? null;
-        // Check if user actually changed
-        if (prevUser?.id === newUser?.id) {
-          return prevUser;
-        }
-        return newUser;
-      });
+      setUser(newUser);
+      prevUserRef.current = newUser;
+      
+      // If user changed (login/logout/switch), invalidate all caches
+      if (userChanged) {
+        console.log('User changed, invalidating caches', { 
+          event, 
+          prevUserId: prevUser?.id, 
+          newUserId: newUser?.id 
+        });
+        
+        // Clear React Query cache for flashcard data
+        queryClient.invalidateQueries({ queryKey: flashcardKeys.all });
+        queryClient.removeQueries({ queryKey: flashcardKeys.all });
+        
+        // Clear UnifiedStorageService cache
+        const { UnifiedStorageService } = await import('@/services/unified-storage');
+        UnifiedStorageService.invalidateUserCache();
+      }
       
       setLoading(false);
     });
@@ -161,7 +182,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       
-      // Clear cached user in UnifiedStorageService
+      // Clear all caches
+      // 1. Clear React Query cache
+      queryClient.invalidateQueries({ queryKey: flashcardKeys.all });
+      queryClient.removeQueries({ queryKey: flashcardKeys.all });
+      queryClient.clear(); // Clear entire cache to ensure clean state
+      
+      // 2. Clear UnifiedStorageService cache
       const { UnifiedStorageService } = await import('@/services/unified-storage');
       UnifiedStorageService.invalidateUserCache();
       
