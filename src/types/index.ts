@@ -35,10 +35,14 @@ export interface FlashcardSetConfig {
 
 export interface FlashcardSet {
   id: string;
-  name: string;
-  flashcards: Flashcard[];
+  title: string;  // Changed from 'name' to match database
+  name?: string;  // Keep for backward compatibility
+  prompt?: string;  // AI generation prompt
+  numberOfCards?: number;  // Total number of cards
+  cards?: Flashcard[];  // Alternative to flashcards
+  flashcards?: Flashcard[];  // Keep for backward compatibility
   config: FlashcardSetConfig;
-  createdAt: Date;
+  createdAt?: Date;
   updatedAt?: Date;
 }
 

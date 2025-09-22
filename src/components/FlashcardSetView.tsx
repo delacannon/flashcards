@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import {
   DndContext,
   closestCenter,
@@ -31,9 +32,18 @@ import { Textarea } from '@/components/ui/textarea';
 import { SortableFlipCard } from '@/components/SortableFlipCard';
 import { PlayMode } from '@/components/PlayMode';
 import { aiService } from '@/services/ai';
+import { aiServiceAuth } from '@/services/ai-auth';
+// Using simplified Supabase auth context
+import { useAuth } from '@/contexts/AuthContextSimple';
+import { AuthModal } from '@/components/AuthModal';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { AlertCircle, Sparkles } from 'lucide-react';
+import { getPatternById } from '@/lib/patterns';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
+import { remarkHighlight } from '@/lib/remarkHighlight';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,36 +52,7 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 
-export interface Flashcard {
-  id: string;
-  question: string;
-  answer: string;
-}
-
-export interface FlashcardSetConfig {
-  flipAxis: 'X' | 'Y';
-  cardTheme?: 'default' | 'dark' | 'blue' | 'green';
-  questionBgColor?: string;
-  questionFgColor?: string;
-  questionFontSize?: string;
-  questionFontFamily?: string;
-  questionBackgroundPattern?: string;
-  answerBgColor?: string;
-  answerFgColor?: string;
-  answerFontSize?: string;
-  answerFontFamily?: string;
-  answerBackgroundPattern?: string;
-  backgroundImage?: string;
-  aiPrompt?: string;
-}
-
-export interface FlashcardSet {
-  id: string;
-  name: string;
-  flashcards: Flashcard[];
-  config: FlashcardSetConfig;
-  createdAt: Date;
-}
+import type { FlashcardSet, Flashcard, FlashcardSetConfig } from '@/types';
 
 interface FlashcardSetViewProps {
   set: FlashcardSet;
@@ -84,6 +65,8 @@ export function FlashcardSetView({
   onBack,
   onUpdateSet,
 }: FlashcardSetViewProps) {
+  const { user } = useAuth();
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [selectedFlashcard, setSelectedFlashcard] = useState<Flashcard | null>(
     null
   );
@@ -103,11 +86,21 @@ export function FlashcardSetView({
   const hasStartedGeneration = useRef(false);
   const generatedCardsRef = useRef<Flashcard[]>([]);
   
+  // Local state for optimistic updates
+  const [localFlashcards, setLocalFlashcards] = useState<Flashcard[]>(set.flashcards);
+  
   // CSV Upload states
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importPreview, setImportPreview] = useState<Flashcard[]>([]);
   const [importMode, setImportMode] = useState<'replace' | 'append'>('append');
+  
+  // Sync local flashcards when set changes (but not during drag operations)
+  useEffect(() => {
+    if (!activeId) {
+      setLocalFlashcards(set.flashcards);
+    }
+  }, [set.flashcards, activeId]);
 
   // Generate AI flashcards if prompt is provided and set is empty
   useEffect(() => {
@@ -119,6 +112,13 @@ export function FlashcardSetView({
         !hasStartedGeneration.current &&
         !isGenerating
       ) {
+        // Check if user is authenticated
+        if (!user) {
+          console.log('AI generation requested but user not authenticated');
+          setShowAuthModal(true);
+          return;
+        }
+
         hasStartedGeneration.current = true;
         setIsGenerating(true);
         setGenerationError(null);
@@ -136,7 +136,7 @@ export function FlashcardSetView({
             needsTitle,
             (card, index) => {
               const newCard: Flashcard = {
-                id: `${Date.now()}_${index}_${Math.random()}`,
+                id: uuidv4(),
                 question: card.question,
                 answer: card.answer,
               };
@@ -164,7 +164,14 @@ export function FlashcardSetView({
           }
         } catch (error) {
           console.error('Failed to generate flashcards:', error);
-          setGenerationError(error instanceof Error ? error.message : 'Failed to generate flashcards');
+          const errorMessage = error instanceof Error ? error.message : 'Failed to generate flashcards';
+          
+          // Check if it's an authentication error
+          if (errorMessage.includes('AUTHENTICATION_REQUIRED')) {
+            setShowAuthModal(true);
+          } else {
+            setGenerationError(errorMessage);
+          }
         } finally {
           setIsGenerating(false);
         }
@@ -193,21 +200,30 @@ export function FlashcardSetView({
     const { active, over } = event;
 
     if (over && active.id !== over.id) {
-      const oldIndex = set.flashcards.findIndex((fc) => fc.id === active.id);
-      const newIndex = set.flashcards.findIndex((fc) => fc.id === over.id);
+      const oldIndex = localFlashcards.findIndex((fc) => fc.id === active.id);
+      const newIndex = localFlashcards.findIndex((fc) => fc.id === over.id);
 
-      const newFlashcards = arrayMove(set.flashcards, oldIndex, newIndex);
+      const newFlashcards = arrayMove(localFlashcards, oldIndex, newIndex);
+      
+      // Update local state immediately for optimistic UI
+      setLocalFlashcards(newFlashcards);
+      
+      // Update the parent state and save to storage in background
       const updatedSet = {
         ...set,
         flashcards: newFlashcards,
       };
-      onUpdateSet(updatedSet);
+      
+      // Don't await - let it save in the background
+      setTimeout(() => {
+        onUpdateSet(updatedSet);
+      }, 0);
     }
     setActiveId(null);
   };
 
   const activeFlashcard = activeId
-    ? set.flashcards.find((fc) => fc.id === activeId)
+    ? localFlashcards.find((fc) => fc.id === activeId)
     : null;
 
   const handleEditFlashcard = (flashcard: Flashcard) => {
@@ -224,7 +240,7 @@ export function FlashcardSetView({
   };
 
   const handlePlayMode = () => {
-    if (set.flashcards.length > 0) {
+    if (localFlashcards.length > 0) {
       setIsPlaying(true);
     }
   };
@@ -236,20 +252,23 @@ export function FlashcardSetView({
   const handleSaveFlashcard = () => {
     if (isCreating) {
       const newFlashcard: Flashcard = {
-        id: Date.now().toString(),
+        id: uuidv4(),
         question,
         answer,
       };
+      const newFlashcards = [...localFlashcards, newFlashcard];
+      setLocalFlashcards(newFlashcards);
       const updatedSet = {
         ...set,
-        flashcards: [...set.flashcards, newFlashcard],
+        flashcards: newFlashcards,
       };
       onUpdateSet(updatedSet);
       setIsCreating(false);
     } else if (isEditing && selectedFlashcard) {
-      const updatedFlashcards = set.flashcards.map((fc) =>
+      const updatedFlashcards = localFlashcards.map((fc) =>
         fc.id === selectedFlashcard.id ? { ...fc, question, answer } : fc
       );
+      setLocalFlashcards(updatedFlashcards);
       const updatedSet = {
         ...set,
         flashcards: updatedFlashcards,
@@ -267,9 +286,10 @@ export function FlashcardSetView({
     newQuestion: string,
     newAnswer: string
   ) => {
-    const updatedFlashcards = set.flashcards.map((fc) =>
+    const updatedFlashcards = localFlashcards.map((fc) =>
       fc.id === id ? { ...fc, question: newQuestion, answer: newAnswer } : fc
     );
+    setLocalFlashcards(updatedFlashcards);
     const updatedSet = {
       ...set,
       flashcards: updatedFlashcards,
@@ -278,7 +298,7 @@ export function FlashcardSetView({
   };
 
   const handleDeleteFlashcard = (flashcardId: string) => {
-    const flashcard = set.flashcards.find((fc) => fc.id === flashcardId);
+    const flashcard = localFlashcards.find((fc) => fc.id === flashcardId);
     if (flashcard) {
       setFlashcardToDelete(flashcard);
       setDeleteConfirmOpen(true);
@@ -287,9 +307,10 @@ export function FlashcardSetView({
 
   const confirmDeleteFlashcard = () => {
     if (flashcardToDelete) {
-      const updatedFlashcards = set.flashcards.filter(
+      const updatedFlashcards = localFlashcards.filter(
         (fc) => fc.id !== flashcardToDelete.id
       );
+      setLocalFlashcards(updatedFlashcards);
       const updatedSet = {
         ...set,
         flashcards: updatedFlashcards,
@@ -316,7 +337,7 @@ export function FlashcardSetView({
   const handleDownloadCSV = () => {
     // Prepare CSV content
     const csvHeaders = ['Question', 'Answer'];
-    const csvRows = set.flashcards.map(card => {
+    const csvRows = localFlashcards.map(card => {
       // Escape values for CSV (handle quotes, commas, newlines)
       const escapeCSV = (value: string) => {
         if (value.includes(',') || value.includes('"') || value.includes('\n')) {
@@ -441,7 +462,7 @@ export function FlashcardSetView({
       if (!question || !answer) continue;
       
       flashcards.push({
-        id: `imported_${Date.now()}_${i}_${Math.random()}`,
+        id: uuidv4(),
         question,
         answer,
       });
@@ -484,9 +505,10 @@ export function FlashcardSetView({
     if (importMode === 'replace') {
       updatedFlashcards = importPreview;
     } else {
-      updatedFlashcards = [...set.flashcards, ...importPreview];
+      updatedFlashcards = [...localFlashcards, ...importPreview];
     }
     
+    setLocalFlashcards(updatedFlashcards);
     const updatedSet = {
       ...set,
       flashcards: updatedFlashcards,
@@ -503,7 +525,7 @@ export function FlashcardSetView({
   };
 
   if (isPlaying) {
-    return <PlayMode set={set} onExit={handleExitPlay} />;
+    return <PlayMode set={{ ...set, flashcards: localFlashcards }} onExit={handleExitPlay} />;
   }
 
   return (
@@ -519,7 +541,7 @@ export function FlashcardSetView({
         </Button>
         <h1 className='text-2xl font-bold flex-1'>{set.name}</h1>
         <div className='flex items-center gap-3'>
-          {set.flashcards.length > 0 && (
+          {localFlashcards.length > 0 && (
             <>
               <Button
                 variant='outline'
@@ -558,8 +580,8 @@ export function FlashcardSetView({
           )}
 
           <span className='text-sm text-muted-foreground'>
-            {set.flashcards.length}{' '}
-            {set.flashcards.length === 1 ? 'card' : 'cards'}
+            {localFlashcards.length}{' '}
+            {localFlashcards.length === 1 ? 'card' : 'cards'}
           </span>
         </div>
       </div>
@@ -608,12 +630,12 @@ export function FlashcardSetView({
           modifiers={[restrictToWindowEdges]}
         >
           <SortableContext
-            items={set.flashcards.map((fc) => fc.id)}
+            items={localFlashcards.map((fc) => fc.id)}
             strategy={rectSortingStrategy}
           >
             <div className='grid auto-rows-min gap-4 md:grid-cols-3 lg:grid-cols-4'>
               {/* Show skeleton cards while generating */}
-              {isGenerating && set.flashcards.length === 0 && (
+              {isGenerating && localFlashcards.length === 0 && (
                 <>
                   {Array.from({ length: 3 }).map((_, index) => (
                     <Skeleton key={`skeleton-${index}`} className='h-[200px] rounded-lg' />
@@ -621,7 +643,7 @@ export function FlashcardSetView({
                 </>
               )}
               
-              {set.flashcards.map((flashcard) => (
+              {localFlashcards.map((flashcard) => (
                 <SortableFlipCard
                   key={flashcard.id}
                   id={flashcard.id}
@@ -676,14 +698,78 @@ export function FlashcardSetView({
           <DragOverlay>
             {activeFlashcard ? (
               <div className='opacity-90 shadow-2xl rounded-xl'>
-                <Card className='min-h-[200px] bg-background border-2'>
-                  <CardContent className='p-6'>
-                    <div className='text-center'>
-                      <p className='font-medium mb-2'>Question</p>
-                      <p className='text-sm'>{activeFlashcard.question}</p>
+                <div
+                  className='min-h-[200px] rounded-xl relative overflow-hidden'
+                  style={{
+                    borderStyle: set.config?.questionBorderStyle === 'none' ? 'none' : (set.config?.questionBorderStyle || 'solid'),
+                    borderWidth: set.config?.questionBorderStyle === 'none' ? '0' : (set.config?.questionBorderWidth || '1px'),
+                    borderColor: set.config?.questionBorderColor || '#e5e7eb',
+                    ...(set.config?.questionBackgroundPattern && set.config?.questionBackgroundPattern !== 'none'
+                      ? getPatternById(set.config?.questionBackgroundPattern)?.getCSS(set.config?.questionBgColor || '#ffffff')
+                      : { backgroundColor: set.config?.questionBgColor || '#ffffff' }),
+                  }}
+                >
+                  {/* Background Image Layer */}
+                  {(set.config?.questionBackgroundImage || set.config?.backgroundImage) && (
+                    <div
+                      className='absolute inset-0 z-0'
+                      style={{
+                        backgroundImage: `url(${set.config?.questionBackgroundImage || set.config?.backgroundImage})`,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                        backgroundRepeat: 'no-repeat',
+                        opacity: set.config?.questionBackgroundImageOpacity ?? set.config?.backgroundImageOpacity ?? 0.3,
+                      }}
+                    />
+                  )}
+                  {/* Content Layer */}
+                  <div 
+                    className='relative z-10 p-6 flex items-center justify-center min-h-[200px]'
+                    style={{
+                      color: set.config?.questionFgColor || '#000000',
+                      fontFamily: set.config?.questionFontFamily || 'inherit',
+                    }}
+                  >
+                    <div 
+                      className='text-center w-full prose prose-sm max-w-none'
+                      style={{
+                        fontSize: set.config?.questionFontSize || '16px',
+                        fontFamily: set.config?.questionFontFamily || 'inherit',
+                        color: set.config?.questionFgColor || 'inherit',
+                      }}
+                    >
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm, remarkHighlight]}
+                        rehypePlugins={[rehypeRaw]}
+                        components={{
+                          p: ({ children }) => (
+                            <p className='m-0' style={{ fontFamily: 'inherit' }}>
+                              {children}
+                            </p>
+                          ),
+                          mark: ({ children }) => (
+                            <mark className='bg-yellow-200 px-1 rounded'>
+                              {children}
+                            </mark>
+                          ),
+                          strong: ({ children }) => (
+                            <strong className='font-bold'>{children}</strong>
+                          ),
+                          em: ({ children }) => (
+                            <em className='italic'>{children}</em>
+                          ),
+                          code: ({ children }) => (
+                            <code className='bg-gray-100 px-1 py-0.5 rounded text-sm'>
+                              {children}
+                            </code>
+                          ),
+                        }}
+                      >
+                        {activeFlashcard.question || 'Empty question'}
+                      </ReactMarkdown>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               </div>
             ) : null}
           </DragOverlay>
@@ -801,7 +887,7 @@ export function FlashcardSetView({
                 <div className='flex-1'>
                   <div className='font-medium'>Append to existing cards</div>
                   <div className='text-sm text-muted-foreground'>
-                    Add imported cards to your current {set.flashcards.length} card{set.flashcards.length === 1 ? '' : 's'}
+                    Add imported cards to your current {localFlashcards.length} card{localFlashcards.length === 1 ? '' : 's'}
                   </div>
                 </div>
               </div>
@@ -869,6 +955,13 @@ export function FlashcardSetView({
         accept='.csv,text/csv'
         style={{ display: 'none' }}
         onChange={handleFileSelect}
+      />
+
+      {/* Auth Modal for AI Features */}
+      <AuthModal 
+        open={showAuthModal} 
+        onOpenChange={setShowAuthModal}
+        message="Sign in to use AI-powered flashcard generation"
       />
     </div>
   );

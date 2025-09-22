@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { Plus, Home, Settings, Search, BookOpen } from 'lucide-react';
+import type { User } from '@supabase/supabase-js';
 
 import { NavUser } from '@/components/nav-user';
 import { StudyStats } from '@/components/sidebar/StudyStats';
@@ -23,23 +24,23 @@ import {
 import { Input } from '@/components/ui/input';
 import { useFlashcardContext } from '@/contexts/FlashcardContext';
 
-// This is sample data for the user
-const userData = {
-  user: {
-    name: 'Student',
-    email: 'student@flashcards.app',
-    avatar: '/avatars/shadcn.jpg',
-  },
-};
+import type { FlashcardSet } from '@/types';
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
+  user: User | null;
+  onSignOut: () => Promise<{ error: Error | null }>;
+  onShowAuthModal: () => void;
+  flashcardSets: FlashcardSet[];
+}
+
+export function AppSidebar({ user, onSignOut, onShowAuthModal, flashcardSets, ...props }: AppSidebarProps) {
   const { actions, selectedSet } = useFlashcardContext();
   const [searchQuery, setSearchQuery] = React.useState('');
 
   return (
     <Sidebar {...props}>
       <SidebarHeader className='border-sidebar-border h-16 border-b'>
-        <NavUser user={userData.user} />
+        <NavUser user={user} onSignOut={onSignOut} onShowAuthModal={onShowAuthModal} />
       </SidebarHeader>
 
       <SidebarContent>
@@ -65,7 +66,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarSeparator />
 
         {/* Study Stats */}
-        <StudyStats />
+        <StudyStats user={user} flashcardSets={flashcardSets} />
 
         <SidebarSeparator />
 

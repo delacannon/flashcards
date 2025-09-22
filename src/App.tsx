@@ -1,6 +1,10 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+// Using simplified Supabase auth context (no database dependencies)
+import { AuthProvider, useAuth } from '@/contexts/AuthContextSimple';
+import { AuthModal } from '@/components/AuthModal';
 import { AppSidebar } from '@/components/app-sidebar';
+import type { FlashcardSet, Flashcard, FlashcardSetConfig } from '@/types';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -45,11 +49,89 @@ import { getPatternById } from '@/lib/patterns';
 import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { aiService } from '@/services/ai';
+import { aiServiceAuth } from '@/services/ai-auth';
+import { UnifiedStorageService } from '@/services/unified-storage';
+import { useEffect } from 'react';
 
-function App() {
+function MainApp() {
+  const { user, loading, signOut } = useAuth();
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [playingSet, setPlayingSet] = useState<FlashcardSet | null>(null);
+
   const [flashcardSets, setFlashcardSets] = useState<FlashcardSet[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState(true);
+  const [hasLoadedInitialData, setHasLoadedInitialData] = useState(false);
+  const loadingRef = useRef(false);
+  const previousUserIdRef = useRef<string | null>(null);
+
+  // Update AI service with current user
+  useEffect(() => {
+    aiServiceAuth.setUser(user as any);
+  }, [user]);
+
+  // Load flashcard sets on mount and when user changes
+  useEffect(() => {
+    const loadData = async () => {
+      // Get current user ID
+      const currentUserId = user?.id || null;
+      
+      // Skip if already loading
+      if (loadingRef.current) {
+        return;
+      }
+      
+      // Skip if user ID hasn't changed (avoid re-loading for same user)
+      if (hasLoadedInitialData && previousUserIdRef.current === currentUserId) {
+        return;
+      }
+      
+      loadingRef.current = true;
+      previousUserIdRef.current = currentUserId;
+      setIsLoadingData(true);
+      
+      try {
+        const sets = await UnifiedStorageService.loadSets();
+        setFlashcardSets(sets);
+        setHasLoadedInitialData(true);
+
+        // If user just logged in and has local data, offer to migrate
+        if (user && localStorage.getItem('flashcardSets')) {
+          const localSets = JSON.parse(localStorage.getItem('flashcardSets') || '[]');
+          if (localSets.length > 0) {
+            if (confirm(`You have ${localSets.length} flashcard sets saved locally. Would you like to sync them to the cloud?`)) {
+              const result = await UnifiedStorageService.migrateLocalToSupabase();
+              if (result.migrated > 0) {
+                console.log(`Migrated ${result.migrated} sets to cloud`);
+                // Reload to get the migrated sets
+                const updatedSets = await UnifiedStorageService.loadSets();
+                setFlashcardSets(updatedSets);
+              }
+              if (result.errors.length > 0) {
+                console.error('Migration errors:', result.errors);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error loading flashcard sets:', error);
+      } finally {
+        setIsLoadingData(false);
+        loadingRef.current = false;
+      }
+    };
+
+    // Only load if not currently loading
+    if (!loading) {
+      loadData();
+    }
+  }, [user?.id, loading]); // Only depend on user.id and loading state
   const [selectedSet, setSelectedSet] = useState<FlashcardSet | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCreatingSet, setIsCreatingSet] = useState(false);
@@ -175,8 +257,11 @@ function App() {
     setDeleteConfirmOpen(true);
   };
 
-  const confirmDeleteSet = () => {
+  const confirmDeleteSet = async () => {
     if (setToDelete) {
+      // Delete from storage
+      await UnifiedStorageService.deleteSet(setToDelete);
+      
       setFlashcardSets(flashcardSets.filter((s) => s.id !== setToDelete));
       if (selectedSet?.id === setToDelete) {
         setSelectedSet(null);
@@ -229,7 +314,35 @@ function App() {
     setIsModalOpen(true);
   };
 
-  const handleSave = () => {
+  const copyQuestionToAnswer = () => {
+    // Copy all question side styles to answer side
+    setConfigAnswerBgColor(configQuestionBgColor);
+    setConfigAnswerFgColor(configQuestionFgColor);
+    setConfigAnswerFontFamily(configQuestionFontFamily);
+    setConfigAnswerFontSize(configQuestionFontSize);
+    setConfigAnswerPattern(configQuestionPattern);
+    setConfigAnswerBackgroundImage(configQuestionBackgroundImage);
+    setConfigAnswerBackgroundImageOpacity(configQuestionBackgroundImageOpacity);
+    setConfigAnswerBorderStyle(configQuestionBorderStyle);
+    setConfigAnswerBorderWidth(configQuestionBorderWidth);
+    setConfigAnswerBorderColor(configQuestionBorderColor);
+  };
+
+  const copyAnswerToQuestion = () => {
+    // Copy all answer side styles to question side
+    setConfigQuestionBgColor(configAnswerBgColor);
+    setConfigQuestionFgColor(configAnswerFgColor);
+    setConfigQuestionFontFamily(configAnswerFontFamily);
+    setConfigQuestionFontSize(configAnswerFontSize);
+    setConfigQuestionPattern(configAnswerPattern);
+    setConfigQuestionBackgroundImage(configAnswerBackgroundImage);
+    setConfigQuestionBackgroundImageOpacity(configAnswerBackgroundImageOpacity);
+    setConfigQuestionBorderStyle(configAnswerBorderStyle);
+    setConfigQuestionBorderWidth(configAnswerBorderWidth);
+    setConfigQuestionBorderColor(configAnswerBorderColor);
+  };
+
+  const handleSave = async () => {
     const config: FlashcardSetConfig = {
       flipAxis: configFlipAxis,
       cardTheme: 'default',
@@ -268,6 +381,7 @@ function App() {
 
       const newSet: FlashcardSet = {
         id: uuidv4(),
+        title: inputValue || 'Untitled Set',
         name: inputValue || 'Untitled Set',
         flashcards,
         config: {
@@ -276,7 +390,10 @@ function App() {
         } as FlashcardSetConfig,
         createdAt: new Date(),
       };
-      setFlashcardSets([...flashcardSets, newSet]);
+      
+      // Save to storage (Supabase or localStorage)
+      const savedSet = await UnifiedStorageService.createSet(newSet);
+      setFlashcardSets([...flashcardSets, savedSet]);
 
       // If AI prompt provided, immediately navigate to the set view for generation
       if (configAiPrompt) {
@@ -284,11 +401,16 @@ function App() {
         setIsModalOpen(false);
       }
     } else if (editingSetId) {
-      setFlashcardSets(
-        flashcardSets.map((set) =>
-          set.id === editingSetId ? { ...set, name: inputValue, config } : set
-        )
-      );
+      const setToUpdate = flashcardSets.find(s => s.id === editingSetId);
+      if (setToUpdate) {
+        const updatedSet = { ...setToUpdate, name: inputValue, title: inputValue, config };
+        await UnifiedStorageService.updateSet(updatedSet);
+        setFlashcardSets(
+          flashcardSets.map((set) =>
+            set.id === editingSetId ? updatedSet : set
+          )
+        );
+      }
     }
     setIsModalOpen(false);
     setInputValue('');
@@ -303,32 +425,49 @@ function App() {
     setIsCreatingSet(false);
   };
 
-  const handleUpdateSet = (updatedSet: FlashcardSet) => {
+  const handleUpdateSet = async (updatedSet: FlashcardSet) => {
+    // Update state immediately for optimistic UI
     setFlashcardSets(
       flashcardSets.map((set) => (set.id === updatedSet.id ? updatedSet : set))
     );
     setSelectedSet(updatedSet);
+    
+    // Save to storage in background (don't await)
+    UnifiedStorageService.updateSet(updatedSet).catch(error => {
+      console.error('Failed to save flashcard set:', error);
+      // Optionally, you could revert the state here or show an error toast
+    });
   };
 
   const handleBackToSets = () => {
     setSelectedSet(null);
   };
 
+  // Show loading only for a moment, then continue even if not logged in
+  if (loading) {
+    // Don't block the app, just show loading briefly
+  }
+
   if (playingSet) {
     return <PlayMode set={playingSet} onExit={handleExitPlay} />;
   }
 
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
+      <SidebarProvider>
+        <AppSidebar 
+          user={user} 
+          onSignOut={signOut} 
+          onShowAuthModal={() => setShowAuthModal(true)}
+          flashcardSets={flashcardSets}
+        />
+        <SidebarInset>
         <header className='bg-background sticky top-0 flex h-16 shrink-0 items-center gap-2 border-b px-4'>
           <SidebarTrigger className='-ml-1' />
           <Separator
             orientation='vertical'
             className='mr-2 data-[orientation=vertical]:h-4'
           />
-          <Breadcrumb>
+          <Breadcrumb className="flex-1">
             <BreadcrumbList>
               <BreadcrumbItem>
                 <BreadcrumbPage>
@@ -437,13 +576,19 @@ function App() {
         )}
 
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <DialogContent className='max-w-6xl overflow-y-auto' noOverlay>
-            <DialogHeader>
+          <DialogContent className='max-w-6xl max-h-[calc(100vh-128px)] flex flex-col' noOverlay hideClose>
+            <DialogHeader className='flex-shrink-0 relative'>
               <DialogTitle>
                 {isCreatingSet ? 'Create New Set' : 'Edit Set'}
               </DialogTitle>
+              <div className='absolute right-0 top-0 flex items-center gap-2'>
+                <Button variant='outline' size='sm' onClick={handleCancel}>
+                  Cancel
+                </Button>
+                <Button size='sm' onClick={handleSave}>Save</Button>
+              </div>
             </DialogHeader>
-            <div className='grid gap-2 py-4'>
+            <div className='grid gap-2 py-4 overflow-y-auto flex-1'>
               {/* Name Input */}
               <div>
                 <Label htmlFor='name' className='text-base font-semibold'>
@@ -469,13 +614,33 @@ function App() {
                     <div className='space-y-3'>
                       <Textarea
                         id='ai-prompt'
-                        placeholder='e.g., "Spanish vocabulary for beginners", "Chemistry periodic table elements", "World War II key events"'
+                        placeholder={user 
+                          ? 'e.g., "Spanish vocabulary for beginners", "Chemistry periodic table elements", "World War II key events"'
+                          : 'Sign in to use AI-powered flashcard generation'
+                        }
                         value={configAiPrompt}
                         onChange={(e) => setConfigAiPrompt(e.target.value)}
                         className='min-h-[80px]'
+                        disabled={!user}
                       />
 
-                      {!aiService.isConfigured() && (
+                      {!user && (
+                        <div className='space-y-2'>
+                          <p className='text-xs text-muted-foreground'>
+                            🔒 Sign in to unlock AI-powered flashcard generation
+                          </p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="w-full"
+                            onClick={() => setShowAuthModal(true)}
+                          >
+                            Sign In to Use AI
+                          </Button>
+                        </div>
+                      )}
+                      {user && !aiService.isConfigured() && (
                         <p className='text-xs text-amber-600'>
                           ⚠️ OpenAI API key not configured. Add
                           VITE_OPENAI_API_KEY to .env file to enable AI
@@ -630,7 +795,27 @@ function App() {
                   <div className='grid grid-cols-2 gap-4'>
                     {/* Styling Section */}
                     <div className='border rounded-lg p-4'>
-                      <h4 className='text-sm font-semibold mb-4'>Styling</h4>
+                      <div className='flex items-center justify-between mb-4'>
+                        <h4 className='text-sm font-semibold'>Styling</h4>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant='ghost'
+                                size='icon'
+                                className='h-6 w-6'
+                                onClick={copyQuestionToAnswer}
+                                type='button'
+                              >
+                                <Copy className='h-3 w-3' />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className='text-xs'>Copy all styles to Answer side</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
                       <div className='space-y-4'>
                         {/* Colors */}
                         <div className='grid grid-cols-2 gap-3'>
@@ -893,7 +1078,27 @@ function App() {
                   <div className='grid grid-cols-2 gap-4'>
                     {/* Styling Section */}
                     <div className='border rounded-lg p-4'>
-                      <h4 className='text-sm font-semibold mb-4'>Styling</h4>
+                      <div className='flex items-center justify-between mb-4'>
+                        <h4 className='text-sm font-semibold'>Styling</h4>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant='ghost'
+                                size='icon'
+                                className='h-6 w-6'
+                                onClick={copyAnswerToQuestion}
+                                type='button'
+                              >
+                                <Copy className='h-3 w-3' />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className='text-xs'>Copy all styles to Question side</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
                       <div className='space-y-4'>
                         {/* Colors */}
                         <div className='grid grid-cols-2 gap-3'>
@@ -1089,12 +1294,6 @@ function App() {
                 </TabsContent>
               </Tabs>
             </div>
-            <DialogFooter>
-              <Button variant='outline' onClick={handleCancel}>
-                Cancel
-              </Button>
-              <Button onClick={handleSave}>Save</Button>
-            </DialogFooter>
           </DialogContent>
         </Dialog>
 
@@ -1126,8 +1325,22 @@ function App() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Auth Modal */}
+        <AuthModal 
+          open={showAuthModal} 
+          onOpenChange={setShowAuthModal}
+        />
       </SidebarInset>
     </SidebarProvider>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <MainApp />
+    </AuthProvider>
   );
 }
 
