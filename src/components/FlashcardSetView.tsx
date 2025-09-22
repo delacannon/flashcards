@@ -37,6 +37,7 @@ import { aiServiceAuth } from '@/services/ai-auth';
 import { useAuth } from '@/contexts/AuthContextSimple';
 import { AuthModal } from '@/components/AuthModal';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PlaceholderCardGrid, PlaceholderCard } from '@/components/ui/placeholder-card';
 import { Progress } from '@/components/ui/progress';
 import { AlertCircle, Sparkles } from 'lucide-react';
 import { getPatternById } from '@/lib/patterns';
@@ -53,6 +54,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 import type { FlashcardSet, Flashcard, FlashcardSetConfig } from '@/types';
+import { useFlashcardSet } from '@/hooks/useFlashcards';
 
 interface FlashcardSetViewProps {
   set: FlashcardSet;
@@ -67,6 +69,19 @@ export function FlashcardSetView({
 }: FlashcardSetViewProps) {
   const { user } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
+  
+  // Use lazy loading if flashcards are not loaded
+  const shouldUseLazyLoading = !set.flashcards;
+  const { data: fullSet, isLoading: isLoadingSet, isFetching: isFetchingSet, error: loadError } = useFlashcardSet(
+    shouldUseLazyLoading ? set.id : null
+  );
+  
+  // Use the fully loaded set if available, otherwise use the original set
+  const currentSet = fullSet || set;
+  const flashcards = currentSet.flashcards || [];
+  
+  // Show skeleton only when actually loading data (not from cache)
+  const showSkeleton = shouldUseLazyLoading && isLoadingSet && !fullSet;
   const [selectedFlashcard, setSelectedFlashcard] = useState<Flashcard | null>(
     null
   );
@@ -87,7 +102,7 @@ export function FlashcardSetView({
   const generatedCardsRef = useRef<Flashcard[]>([]);
   
   // Local state for optimistic updates
-  const [localFlashcards, setLocalFlashcards] = useState<Flashcard[]>(set.flashcards);
+  const [localFlashcards, setLocalFlashcards] = useState<Flashcard[]>(flashcards);
   
   // CSV Upload states
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -95,22 +110,24 @@ export function FlashcardSetView({
   const [importPreview, setImportPreview] = useState<Flashcard[]>([]);
   const [importMode, setImportMode] = useState<'replace' | 'append'>('append');
   
-  // Sync local flashcards when set changes (but not during drag operations)
+  // Sync local flashcards when flashcards change (but not during drag operations)
   useEffect(() => {
     if (!activeId) {
-      setLocalFlashcards(set.flashcards);
+      setLocalFlashcards(flashcards);
     }
-  }, [set.flashcards, activeId]);
+  }, [flashcards, activeId]);
 
   // Generate AI flashcards if prompt is provided and set is empty
   useEffect(() => {
     const generateCards = async () => {
       // Check if we should generate cards (only once per set with AI prompt)
       if (
-        set.config.aiPrompt && 
-        set.flashcards.length === 0 && 
+        currentSet.config.aiPrompt && 
+        flashcards.length === 0 && 
         !hasStartedGeneration.current &&
-        !isGenerating
+        !isGenerating &&
+        !isLoadingSet && // Don't generate while still loading the set
+        !showSkeleton // Don't generate while showing placeholder cards
       ) {
         // Check if user is authenticated
         if (!user) {
@@ -126,12 +143,12 @@ export function FlashcardSetView({
         generatedCardsRef.current = [];
         
         try {
-          const cardCount = parseInt((set.config as any).cardCount) || parseInt((set.config as any).configCardCount) || 5;
-          const needsTitle = !set.name || set.name === 'Untitled Set';
+          const cardCount = parseInt((currentSet.config as any).cardCount) || parseInt((currentSet.config as any).configCardCount) || 5;
+          const needsTitle = !currentSet.name || currentSet.name === 'Untitled Set';
           
           // Generate title and flashcards
           const result = await aiService.generateFlashcardsWithTitle(
-            set.config.aiPrompt,
+            currentSet.config.aiPrompt,
             cardCount,
             needsTitle,
             (card, index) => {
@@ -144,7 +161,7 @@ export function FlashcardSetView({
               
               // Update the set with all generated cards so far (avoiding duplicates)
               const updatedSet = {
-                ...set,
+                ...currentSet,
                 flashcards: [...generatedCardsRef.current],
               };
               onUpdateSet(updatedSet);
@@ -156,7 +173,7 @@ export function FlashcardSetView({
           // Update title if generated
           if (result.title && needsTitle) {
             const finalSet = {
-              ...set,
+              ...currentSet,
               name: result.title,
               flashcards: generatedCardsRef.current,
             };
@@ -179,7 +196,7 @@ export function FlashcardSetView({
     };
     
     generateCards();
-  }, [set.id]); // Only depend on set.id to prevent re-runs
+  }, [currentSet.id, flashcards.length, currentSet.config.aiPrompt, isGenerating, isLoadingSet, showSkeleton]); // Dependencies for AI generation
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -210,7 +227,7 @@ export function FlashcardSetView({
       
       // Update the parent state and save to storage in background
       const updatedSet = {
-        ...set,
+        ...currentSet,
         flashcards: newFlashcards,
       };
       
@@ -259,7 +276,7 @@ export function FlashcardSetView({
       const newFlashcards = [...localFlashcards, newFlashcard];
       setLocalFlashcards(newFlashcards);
       const updatedSet = {
-        ...set,
+        ...currentSet,
         flashcards: newFlashcards,
       };
       onUpdateSet(updatedSet);
@@ -270,7 +287,7 @@ export function FlashcardSetView({
       );
       setLocalFlashcards(updatedFlashcards);
       const updatedSet = {
-        ...set,
+        ...currentSet,
         flashcards: updatedFlashcards,
       };
       onUpdateSet(updatedSet);
@@ -291,7 +308,7 @@ export function FlashcardSetView({
     );
     setLocalFlashcards(updatedFlashcards);
     const updatedSet = {
-      ...set,
+      ...currentSet,
       flashcards: updatedFlashcards,
     };
     onUpdateSet(updatedSet);
@@ -312,7 +329,7 @@ export function FlashcardSetView({
       );
       setLocalFlashcards(updatedFlashcards);
       const updatedSet = {
-        ...set,
+        ...currentSet,
         flashcards: updatedFlashcards,
       };
       onUpdateSet(updatedSet);
@@ -510,7 +527,7 @@ export function FlashcardSetView({
     
     setLocalFlashcards(updatedFlashcards);
     const updatedSet = {
-      ...set,
+      ...currentSet,
       flashcards: updatedFlashcards,
     };
     
@@ -525,7 +542,105 @@ export function FlashcardSetView({
   };
 
   if (isPlaying) {
-    return <PlayMode set={{ ...set, flashcards: localFlashcards }} onExit={handleExitPlay} />;
+    return <PlayMode set={{ ...currentSet, flashcards: localFlashcards }} onExit={handleExitPlay} />;
+  }
+
+  // Show skeleton cards when lazy loading the set
+  if (showSkeleton) {
+    return (
+      <div className='flex flex-1 flex-col gap-4 overflow-hidden'>
+        <div className='flex items-center gap-4 px-4 pt-4'>
+          <Button
+            variant='ghost'
+            size='icon'
+            onClick={onBack}
+            className='shrink-0'
+          >
+            <ArrowLeft className='h-4 w-4' />
+          </Button>
+          <h1 className='text-2xl font-bold flex-1'>{currentSet.title || currentSet.name}</h1>
+          <div className='flex items-center gap-3'>
+            {/* Show only Play and Actions buttons during loading - disabled */}
+            <Button
+              variant='outline'
+              size='sm'
+              disabled={true}
+              className='flex items-center gap-2 opacity-50'
+            >
+              <Play className='h-4 w-4' />
+              Play
+            </Button>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant='outline'
+                  size='sm'
+                  disabled={true}
+                  className='flex items-center gap-2 opacity-50'
+                >
+                  <MoreVertical className='h-4 w-4' />
+                  Actions
+                </Button>
+              </DropdownMenuTrigger>
+            </DropdownMenu>
+          </div>
+        </div>
+        <div className='flex-1 overflow-y-auto px-4 pb-4'>
+          {set.cardCount && set.cardCount > 0 ? (
+            /* Use placeholder cards that match real card dimensions and styles */
+            <PlaceholderCardGrid 
+              count={set.cardCount}
+              config={currentSet.config}
+            />
+          ) : (
+            /* Show single placeholder card if no count available */
+            <div className='flex items-center justify-center h-full'>
+              <div className='w-[300px]'>
+                <PlaceholderCard 
+                  bgColor={currentSet.config?.questionBgColor}
+                  borderStyle={currentSet.config?.questionBorderStyle}
+                  borderWidth={currentSet.config?.questionBorderWidth}
+                  borderColor={currentSet.config?.questionBorderColor}
+                  backgroundImage={currentSet.config?.questionBackgroundImage || currentSet.config?.backgroundImage}
+                  backgroundImageOpacity={currentSet.config?.questionBackgroundImageOpacity ?? currentSet.config?.backgroundImageOpacity}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state if loading failed
+  if (loadError) {
+    return (
+      <div className='flex flex-1 flex-col gap-4 overflow-hidden'>
+        <div className='flex items-center gap-4 px-4 pt-4'>
+          <Button
+            variant='ghost'
+            size='icon'
+            onClick={onBack}
+            className='shrink-0'
+          >
+            <ArrowLeft className='h-4 w-4' />
+          </Button>
+          <h1 className='text-2xl font-bold flex-1'>{currentSet.title || currentSet.name}</h1>
+        </div>
+        <div className='flex-1 px-4 pb-4 flex items-center justify-center'>
+          <div className='flex flex-col items-center gap-4'>
+            <AlertCircle className='h-8 w-8 text-red-500' />
+            <p className='text-muted-foreground text-center'>
+              Failed to load flashcards.<br />
+              <Button variant='link' onClick={() => window.location.reload()}>
+                Try again
+              </Button>
+            </p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -539,7 +654,7 @@ export function FlashcardSetView({
         >
           <ArrowLeft className='h-4 w-4' />
         </Button>
-        <h1 className='text-2xl font-bold flex-1'>{set.name}</h1>
+        <h1 className='text-2xl font-bold flex-1'>{currentSet.name}</h1>
         <div className='flex items-center gap-3'>
           {localFlashcards.length > 0 && (
             <>
@@ -638,7 +753,15 @@ export function FlashcardSetView({
               {isGenerating && localFlashcards.length === 0 && (
                 <>
                   {Array.from({ length: 3 }).map((_, index) => (
-                    <Skeleton key={`skeleton-${index}`} className='h-[200px] rounded-lg' />
+                    <PlaceholderCard 
+                      key={`placeholder-gen-${index}`}
+                      bgColor={currentSet.config?.questionBgColor}
+                      borderStyle={currentSet.config?.questionBorderStyle}
+                      borderWidth={currentSet.config?.questionBorderWidth}
+                      borderColor={currentSet.config?.questionBorderColor}
+                      backgroundImage={currentSet.config?.questionBackgroundImage || currentSet.config?.backgroundImage}
+                      backgroundImageOpacity={currentSet.config?.questionBackgroundImageOpacity ?? currentSet.config?.backgroundImageOpacity}
+                    />
                   ))}
                 </>
               )}
@@ -649,31 +772,31 @@ export function FlashcardSetView({
                   id={flashcard.id}
                   question={flashcard.question}
                   answer={flashcard.answer}
-                  flipAxis={set.config?.flipAxis || 'Y'}
-                  questionBgColor={set.config?.questionBgColor}
-                  questionFgColor={set.config?.questionFgColor}
-                  questionFontSize={set.config?.questionFontSize}
-                  questionFontFamily={set.config?.questionFontFamily}
+                  flipAxis={currentSet.config?.flipAxis || 'Y'}
+                  questionBgColor={currentSet.config?.questionBgColor}
+                  questionFgColor={currentSet.config?.questionFgColor}
+                  questionFontSize={currentSet.config?.questionFontSize}
+                  questionFontFamily={currentSet.config?.questionFontFamily}
                   questionBackgroundPattern={
-                    set.config?.questionBackgroundPattern
+                    currentSet.config?.questionBackgroundPattern
                   }
-                  answerBgColor={set.config?.answerBgColor}
-                  answerFgColor={set.config?.answerFgColor}
-                  answerFontSize={set.config?.answerFontSize}
-                  answerFontFamily={set.config?.answerFontFamily}
-                  answerBackgroundPattern={set.config?.answerBackgroundPattern}
-                  questionBackgroundImage={set.config?.questionBackgroundImage}
-                  questionBackgroundImageOpacity={set.config?.questionBackgroundImageOpacity}
-                  answerBackgroundImage={set.config?.answerBackgroundImage}
-                  answerBackgroundImageOpacity={set.config?.answerBackgroundImageOpacity}
-                  backgroundImage={set.config?.backgroundImage}
-                  backgroundImageOpacity={set.config?.backgroundImageOpacity}
-                  questionBorderStyle={set.config?.questionBorderStyle}
-                  questionBorderWidth={set.config?.questionBorderWidth}
-                  questionBorderColor={set.config?.questionBorderColor}
-                  answerBorderStyle={set.config?.answerBorderStyle}
-                  answerBorderWidth={set.config?.answerBorderWidth}
-                  answerBorderColor={set.config?.answerBorderColor}
+                  answerBgColor={currentSet.config?.answerBgColor}
+                  answerFgColor={currentSet.config?.answerFgColor}
+                  answerFontSize={currentSet.config?.answerFontSize}
+                  answerFontFamily={currentSet.config?.answerFontFamily}
+                  answerBackgroundPattern={currentSet.config?.answerBackgroundPattern}
+                  questionBackgroundImage={currentSet.config?.questionBackgroundImage}
+                  questionBackgroundImageOpacity={currentSet.config?.questionBackgroundImageOpacity}
+                  answerBackgroundImage={currentSet.config?.answerBackgroundImage}
+                  answerBackgroundImageOpacity={currentSet.config?.answerBackgroundImageOpacity}
+                  backgroundImage={currentSet.config?.backgroundImage}
+                  backgroundImageOpacity={currentSet.config?.backgroundImageOpacity}
+                  questionBorderStyle={currentSet.config?.questionBorderStyle}
+                  questionBorderWidth={currentSet.config?.questionBorderWidth}
+                  questionBorderColor={currentSet.config?.questionBorderColor}
+                  answerBorderStyle={currentSet.config?.answerBorderStyle}
+                  answerBorderWidth={currentSet.config?.answerBorderWidth}
+                  answerBorderColor={currentSet.config?.answerBorderColor}
                   onEdit={() => handleEditFlashcard(flashcard)}
                   onDelete={() => handleDeleteFlashcard(flashcard.id)}
                   onUpdateContent={handleUpdateFlashcardContent}
@@ -701,24 +824,24 @@ export function FlashcardSetView({
                 <div
                   className='min-h-[200px] rounded-xl relative overflow-hidden'
                   style={{
-                    borderStyle: set.config?.questionBorderStyle === 'none' ? 'none' : (set.config?.questionBorderStyle || 'solid'),
-                    borderWidth: set.config?.questionBorderStyle === 'none' ? '0' : (set.config?.questionBorderWidth || '1px'),
-                    borderColor: set.config?.questionBorderColor || '#e5e7eb',
-                    ...(set.config?.questionBackgroundPattern && set.config?.questionBackgroundPattern !== 'none'
-                      ? getPatternById(set.config?.questionBackgroundPattern)?.getCSS(set.config?.questionBgColor || '#ffffff')
-                      : { backgroundColor: set.config?.questionBgColor || '#ffffff' }),
+                    borderStyle: currentSet.config?.questionBorderStyle === 'none' ? 'none' : (currentSet.config?.questionBorderStyle || 'solid'),
+                    borderWidth: currentSet.config?.questionBorderStyle === 'none' ? '0' : (currentSet.config?.questionBorderWidth || '1px'),
+                    borderColor: currentSet.config?.questionBorderColor || '#e5e7eb',
+                    ...(currentSet.config?.questionBackgroundPattern && currentSet.config?.questionBackgroundPattern !== 'none'
+                      ? getPatternById(currentSet.config?.questionBackgroundPattern)?.getCSS(currentSet.config?.questionBgColor || '#ffffff')
+                      : { backgroundColor: currentSet.config?.questionBgColor || '#ffffff' }),
                   }}
                 >
                   {/* Background Image Layer */}
-                  {(set.config?.questionBackgroundImage || set.config?.backgroundImage) && (
+                  {(currentSet.config?.questionBackgroundImage || currentSet.config?.backgroundImage) && (
                     <div
                       className='absolute inset-0 z-0'
                       style={{
-                        backgroundImage: `url(${set.config?.questionBackgroundImage || set.config?.backgroundImage})`,
+                        backgroundImage: `url(${currentSet.config?.questionBackgroundImage || currentSet.config?.backgroundImage})`,
                         backgroundSize: 'cover',
                         backgroundPosition: 'center',
                         backgroundRepeat: 'no-repeat',
-                        opacity: set.config?.questionBackgroundImageOpacity ?? set.config?.backgroundImageOpacity ?? 0.3,
+                        opacity: currentSet.config?.questionBackgroundImageOpacity ?? currentSet.config?.backgroundImageOpacity ?? 0.3,
                       }}
                     />
                   )}
@@ -726,16 +849,16 @@ export function FlashcardSetView({
                   <div 
                     className='relative z-10 p-6 flex items-center justify-center min-h-[200px]'
                     style={{
-                      color: set.config?.questionFgColor || '#000000',
-                      fontFamily: set.config?.questionFontFamily || 'inherit',
+                      color: currentSet.config?.questionFgColor || '#000000',
+                      fontFamily: currentSet.config?.questionFontFamily || 'inherit',
                     }}
                   >
                     <div 
                       className='text-center w-full prose prose-sm max-w-none'
                       style={{
-                        fontSize: set.config?.questionFontSize || '16px',
-                        fontFamily: set.config?.questionFontFamily || 'inherit',
-                        color: set.config?.questionFgColor || 'inherit',
+                        fontSize: currentSet.config?.questionFontSize || '16px',
+                        fontFamily: currentSet.config?.questionFontFamily || 'inherit',
+                        color: currentSet.config?.questionFgColor || 'inherit',
                       }}
                     >
                       <ReactMarkdown

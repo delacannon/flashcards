@@ -32,6 +32,8 @@
     "@supabase/auth-ui-shared": "^0.1.8",
     "@supabase/supabase-js": "^2.57.4",
     "@tailwindcss/vite": "^4.1.13",
+    "@tanstack/react-query": "^5.90.1",
+    "@tanstack/react-query-devtools": "^5.90.1",
     "@tiptap/extension-bold": "^3.4.4",
     "@tiptap/extension-highlight": "^3.4.4",
     "@tiptap/extension-italic": "^3.4.4",

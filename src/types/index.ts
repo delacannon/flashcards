@@ -39,8 +39,9 @@ export interface FlashcardSet {
   name?: string;  // Keep for backward compatibility
   prompt?: string;  // AI generation prompt
   numberOfCards?: number;  // Total number of cards
+  cardCount?: number;  // For lazy loading - number of cards without loading them
   cards?: Flashcard[];  // Alternative to flashcards
-  flashcards?: Flashcard[];  // Keep for backward compatibility
+  flashcards?: Flashcard[];  // Keep for backward compatibility - now optional for lazy loading
   config: FlashcardSetConfig;
   createdAt?: Date;
   updatedAt?: Date;

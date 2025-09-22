@@ -123,6 +123,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       
+      // Clear cached user in UnifiedStorageService
+      const { UnifiedStorageService } = await import('@/services/unified-storage');
+      UnifiedStorageService.invalidateUserCache();
+      
       return { error: null };
     } catch (error) {
       console.error('Signout error:', error);

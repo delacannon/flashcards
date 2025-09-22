@@ -58,7 +58,7 @@ export function RecentSets() {
                 </div>
                 <div className="flex items-center gap-1">
                   <span className="text-xs text-muted-foreground">
-                    {set.flashcards.length}
+                    {set.cardCount ?? set.flashcards?.length ?? 0}
                   </span>
                   <ChevronRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>

@@ -15,7 +15,7 @@ export function StudyProgress() {
   const setsWithProgress = sets.map(set => ({
     ...set,
     // Mock progress - in reality, this would be tracked per card
-    progress: set.flashcards.length > 0 ? Math.floor(Math.random() * 100) : 0
+    progress: (set.cardCount ?? set.flashcards?.length ?? 0) > 0 ? Math.floor(Math.random() * 100) : 0
   })).slice(0, 3); // Show only top 3 sets
 
   const overallProgress = setsWithProgress.length > 0

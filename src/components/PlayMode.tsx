@@ -19,6 +19,18 @@ interface PlayModeProps {
 
 export function PlayMode({ set, onExit }: PlayModeProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
+  
+  // Safety check - if no flashcards available, exit immediately
+  if (!set.flashcards || set.flashcards.length === 0) {
+    return (
+      <div className='flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100'>
+        <div className='text-center'>
+          <p className='text-muted-foreground mb-4'>No flashcards available to play.</p>
+          <Button onClick={onExit}>Back to Set</Button>
+        </div>
+      </div>
+    );
+  }
   const [flipped, setFlipped] = useState(false);
   const [direction, setDirection] = useState<'left' | 'right'>('right');
   const [hasFlippedCurrentCard, setHasFlippedCurrentCard] = useState(false);
@@ -26,8 +38,8 @@ export function PlayMode({ set, onExit }: PlayModeProps) {
   const [hasCompletedSet, setHasCompletedSet] = useState(false);
   const [isFadingOut, setIsFadingOut] = useState(false);
 
-  const currentCard = set.flashcards[currentIndex];
-  const totalCards = set.flashcards.length;
+  const currentCard = set.flashcards?.[currentIndex];
+  const totalCards = set.flashcards?.length || 0;
   const flipAxis = set.config?.flipAxis || 'Y';
   const progressPercentage = ((currentIndex + 1) / totalCards) * 100;
 

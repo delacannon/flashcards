@@ -21,7 +21,7 @@ import { Button } from '@/components/ui/button';
 export function StudyTools() {
   const { sets } = useFlashcardContext();
 
-  const totalCards = sets.reduce((sum, set) => sum + set.flashcards.length, 0);
+  const totalCards = sets.reduce((sum, set) => sum + (set.cardCount ?? set.flashcards?.length ?? 0), 0);
   const hasCards = totalCards > 0;
 
   const tools = [

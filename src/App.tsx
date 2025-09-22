@@ -1,10 +1,13 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { queryClient } from '@/lib/query-client';
 // Using simplified Supabase auth context (no database dependencies)
 import { AuthProvider, useAuth } from '@/contexts/AuthContextSimple';
 import { AuthModal } from '@/components/AuthModal';
 import { AppSidebar } from '@/components/app-sidebar';
-import type { FlashcardSet, Flashcard, FlashcardSetConfig } from '@/types';
+import type { FlashcardSet, FlashcardSetConfig } from '@/types';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -31,8 +34,6 @@ import { Button } from '@/components/ui/button';
 import { Plus, Edit2, Trash2, Copy, Play } from 'lucide-react';
 import {
   FlashcardSetView,
-  type FlashcardSet,
-  type FlashcardSetConfig,
 } from '@/components/FlashcardSetView';
 import { PlayMode } from '@/components/PlayMode';
 import { Label } from '@/components/ui/label';
@@ -57,81 +58,65 @@ import {
 } from '@/components/ui/tooltip';
 import { aiService } from '@/services/ai';
 import { aiServiceAuth } from '@/services/ai-auth';
-import { UnifiedStorageService } from '@/services/unified-storage';
+import { 
+  useFlashcardSets,
+  useFlashcardSet,
+  useCreateSet,
+  useUpdateSet,
+  useDeleteSet,
+  useMigrateToSupabase
+} from '@/hooks/useFlashcards';
 import { useEffect } from 'react';
 
 function MainApp() {
   const { user, loading, signOut } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [playingSet, setPlayingSet] = useState<FlashcardSet | null>(null);
+  
+  // Use lazy loading for playing set if it doesn't have flashcards loaded
+  const { data: fullPlayingSet, isLoading: isLoadingPlayingSet } = useFlashcardSet(
+    playingSet && !playingSet.flashcards ? playingSet.id : null
+  );
 
-  const [flashcardSets, setFlashcardSets] = useState<FlashcardSet[]>([]);
-  const [isLoadingData, setIsLoadingData] = useState(true);
-  const [hasLoadedInitialData, setHasLoadedInitialData] = useState(false);
-  const loadingRef = useRef(false);
-  const previousUserIdRef = useRef<string | null>(null);
+  // React Query hooks
+  const { data: flashcardSets = [] } = useFlashcardSets();
+  const createSetMutation = useCreateSet();
+  const updateSetMutation = useUpdateSet();
+  const deleteSetMutation = useDeleteSet();
+  const migrateToSupabaseMutation = useMigrateToSupabase();
 
   // Update AI service with current user
   useEffect(() => {
     aiServiceAuth.setUser(user as any);
   }, [user]);
 
-  // Load flashcard sets on mount and when user changes
+  // Handle migration when user logs in
   useEffect(() => {
-    const loadData = async () => {
-      // Get current user ID
-      const currentUserId = user?.id || null;
-      
-      // Skip if already loading
-      if (loadingRef.current) {
-        return;
-      }
-      
-      // Skip if user ID hasn't changed (avoid re-loading for same user)
-      if (hasLoadedInitialData && previousUserIdRef.current === currentUserId) {
-        return;
-      }
-      
-      loadingRef.current = true;
-      previousUserIdRef.current = currentUserId;
-      setIsLoadingData(true);
-      
-      try {
-        const sets = await UnifiedStorageService.loadSets();
-        setFlashcardSets(sets);
-        setHasLoadedInitialData(true);
-
-        // If user just logged in and has local data, offer to migrate
-        if (user && localStorage.getItem('flashcardSets')) {
-          const localSets = JSON.parse(localStorage.getItem('flashcardSets') || '[]');
-          if (localSets.length > 0) {
-            if (confirm(`You have ${localSets.length} flashcard sets saved locally. Would you like to sync them to the cloud?`)) {
-              const result = await UnifiedStorageService.migrateLocalToSupabase();
-              if (result.migrated > 0) {
-                console.log(`Migrated ${result.migrated} sets to cloud`);
-                // Reload to get the migrated sets
-                const updatedSets = await UnifiedStorageService.loadSets();
-                setFlashcardSets(updatedSets);
+    const checkForMigration = async () => {
+      // If user just logged in and has local data, offer to migrate
+      if (user && localStorage.getItem('flashcardSets')) {
+        const localSets = JSON.parse(localStorage.getItem('flashcardSets') || '[]');
+        if (localSets.length > 0) {
+          if (confirm(`You have ${localSets.length} flashcard sets saved locally. Would you like to sync them to the cloud?`)) {
+            migrateToSupabaseMutation.mutate(undefined, {
+              onSuccess: (result) => {
+                if (result.migrated > 0) {
+                  console.log(`Migrated ${result.migrated} sets to cloud`);
+                }
+                if (result.errors.length > 0) {
+                  console.error('Migration errors:', result.errors);
+                }
               }
-              if (result.errors.length > 0) {
-                console.error('Migration errors:', result.errors);
-              }
-            }
+            });
           }
         }
-      } catch (error) {
-        console.error('Error loading flashcard sets:', error);
-      } finally {
-        setIsLoadingData(false);
-        loadingRef.current = false;
       }
     };
 
-    // Only load if not currently loading
-    if (!loading) {
-      loadData();
+    if (!loading && user) {
+      checkForMigration();
     }
-  }, [user?.id, loading]); // Only depend on user.id and loading state
+  }, [user?.id, loading, migrateToSupabaseMutation]); // Only depend on user.id and loading state
   const [selectedSet, setSelectedSet] = useState<FlashcardSet | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCreatingSet, setIsCreatingSet] = useState(false);
@@ -191,7 +176,8 @@ function MainApp() {
 
   const handlePlaySet = (e: React.MouseEvent, set: FlashcardSet) => {
     e.stopPropagation();
-    if (set.flashcards.length > 0) {
+    const cardCount = set.cardCount ?? set.flashcards?.length ?? 0;
+    if (cardCount > 0) {
       setPlayingSet(set);
     }
   };
@@ -259,16 +245,21 @@ function MainApp() {
 
   const confirmDeleteSet = async () => {
     if (setToDelete) {
-      // Delete from storage
-      await UnifiedStorageService.deleteSet(setToDelete);
-      
-      setFlashcardSets(flashcardSets.filter((s) => s.id !== setToDelete));
-      if (selectedSet?.id === setToDelete) {
-        setSelectedSet(null);
-      }
+      deleteSetMutation.mutate(setToDelete, {
+        onSuccess: () => {
+          if (selectedSet?.id === setToDelete) {
+            setSelectedSet(null);
+          }
+          setDeleteConfirmOpen(false);
+          setSetToDelete(null);
+        },
+        onError: (error) => {
+          console.error('Failed to delete set:', error);
+          setDeleteConfirmOpen(false);
+          setSetToDelete(null);
+        }
+      });
     }
-    setDeleteConfirmOpen(false);
-    setSetToDelete(null);
   };
 
   const cancelDeleteSet = () => {
@@ -286,7 +277,11 @@ function MainApp() {
         name: `${setToDuplicate.name} (Copy)`,
         createdAt: new Date(),
       };
-      setFlashcardSets([...flashcardSets, duplicatedSet]);
+      createSetMutation.mutate(duplicatedSet, {
+        onError: (error) => {
+          console.error('Failed to duplicate set:', error);
+        }
+      });
     }
   };
 
@@ -391,25 +386,28 @@ function MainApp() {
         createdAt: new Date(),
       };
       
-      // Save to storage (Supabase or localStorage)
-      const savedSet = await UnifiedStorageService.createSet(newSet);
-      setFlashcardSets([...flashcardSets, savedSet]);
+      // Save to storage using React Query mutation
+      createSetMutation.mutate(newSet, {
+        onSuccess: (savedSet) => {
+          // If AI prompt provided, immediately navigate to the set view for generation
+          if (configAiPrompt) {
+            setSelectedSet(savedSet);
+          }
+        },
+        onError: (error) => {
+          console.error('Failed to create set:', error);
+        }
+      });
 
-      // If AI prompt provided, immediately navigate to the set view for generation
-      if (configAiPrompt) {
-        setSelectedSet(newSet);
-        setIsModalOpen(false);
-      }
     } else if (editingSetId) {
       const setToUpdate = flashcardSets.find(s => s.id === editingSetId);
       if (setToUpdate) {
         const updatedSet = { ...setToUpdate, name: inputValue, title: inputValue, config };
-        await UnifiedStorageService.updateSet(updatedSet);
-        setFlashcardSets(
-          flashcardSets.map((set) =>
-            set.id === editingSetId ? updatedSet : set
-          )
-        );
+        updateSetMutation.mutate(updatedSet, {
+          onError: (error) => {
+            console.error('Failed to update set:', error);
+          }
+        });
       }
     }
     setIsModalOpen(false);
@@ -426,16 +424,13 @@ function MainApp() {
   };
 
   const handleUpdateSet = async (updatedSet: FlashcardSet) => {
-    // Update state immediately for optimistic UI
-    setFlashcardSets(
-      flashcardSets.map((set) => (set.id === updatedSet.id ? updatedSet : set))
-    );
     setSelectedSet(updatedSet);
     
-    // Save to storage in background (don't await)
-    UnifiedStorageService.updateSet(updatedSet).catch(error => {
-      console.error('Failed to save flashcard set:', error);
-      // Optionally, you could revert the state here or show an error toast
+    // Save using React Query mutation with optimistic updates
+    updateSetMutation.mutate(updatedSet, {
+      onError: (error) => {
+        console.error('Failed to save flashcard set:', error);
+      }
     });
   };
 
@@ -449,7 +444,25 @@ function MainApp() {
   }
 
   if (playingSet) {
-    return <PlayMode set={playingSet} onExit={handleExitPlay} />;
+    // Show loading state while loading full set for play mode
+    if (isLoadingPlayingSet) {
+      return (
+        <div className='flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100'>
+          <div className='flex flex-col items-center gap-4'>
+            <div className='flex items-center space-x-2'>
+              <div className='w-4 h-4 bg-blue-500 rounded-full animate-pulse'></div>
+              <div className='w-4 h-4 bg-blue-500 rounded-full animate-pulse delay-75'></div>
+              <div className='w-4 h-4 bg-blue-500 rounded-full animate-pulse delay-150'></div>
+            </div>
+            <p className='text-muted-foreground'>Loading flashcards for play mode...</p>
+          </div>
+        </div>
+      );
+    }
+    
+    // Use the fully loaded set if available, otherwise use original set
+    const setToPlay = fullPlayingSet || playingSet;
+    return <PlayMode set={setToPlay} onExit={handleExitPlay} />;
   }
 
   return (
@@ -509,7 +522,7 @@ function MainApp() {
                   onClick={() => handleSetClick(set)}
                 >
                   <div className='absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 z-10'>
-                    {set.flashcards.length > 0 && (
+                    {(set.cardCount ?? set.flashcards?.length ?? 0) > 0 && (
                       <Button
                         size='icon'
                         variant='ghost'
@@ -549,11 +562,11 @@ function MainApp() {
                   </CardHeader>
                   <CardContent>
                     <p className='text-sm text-muted-foreground'>
-                      {set.flashcards.length}{' '}
-                      {set.flashcards.length === 1 ? 'card' : 'cards'}
+                      {set.cardCount ?? set.flashcards?.length ?? 0}{' '}
+                      {(set.cardCount ?? set.flashcards?.length ?? 0) === 1 ? 'card' : 'cards'}
                     </p>
                     <p className='text-xs text-muted-foreground mt-2'>
-                      Created {set.createdAt.toLocaleDateString()}
+                      Created {set.createdAt?.toLocaleDateString()}
                     </p>
                   </CardContent>
                 </Card>
@@ -1305,13 +1318,16 @@ function MainApp() {
                 Are you sure you want to delete "
                 {flashcardSets.find((s) => s.id === setToDelete)?.name}"? This
                 will permanently remove the set and all{' '}
-                {flashcardSets.find((s) => s.id === setToDelete)?.flashcards
-                  .length || 0}{' '}
+                {(() => {
+                  const set = flashcardSets.find((s) => s.id === setToDelete);
+                  return set?.cardCount ?? set?.flashcards?.length ?? 0;
+                })()}{' '}
                 flashcard
-                {(flashcardSets.find((s) => s.id === setToDelete)?.flashcards
-                  .length || 0) === 1
-                  ? ''
-                  : 's'}{' '}
+                {(() => {
+                  const set = flashcardSets.find((s) => s.id === setToDelete);
+                  const count = set?.cardCount ?? set?.flashcards?.length ?? 0;
+                  return count === 1 ? '' : 's';
+                })()}{' '}
                 it contains.
               </DialogDescription>
             </DialogHeader>
@@ -1338,9 +1354,12 @@ function MainApp() {
 
 function App() {
   return (
-    <AuthProvider>
-      <MainApp />
-    </AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <MainApp />
+        <ReactQueryDevtools initialIsOpen={false} />
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }
 

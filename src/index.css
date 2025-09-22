@@ -192,6 +192,15 @@
   animation: fadeOut 0.5s ease-in-out forwards;
 }
 
+@keyframes opacityPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
