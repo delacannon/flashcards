@@ -21,18 +21,63 @@
 3. Copy and paste the contents of `supabase/storage-buckets.sql`
 4. Run the query to create storage buckets
 
-### 3. Enable Email Authentication
+### 3. Enable Authentication Providers
 
+#### Email Authentication
 1. Go to Authentication > Providers
 2. Ensure Email provider is enabled
 3. Configure email templates if desired (optional)
+
+#### Google OAuth Authentication
+1. Go to Authentication > Providers
+2. Find Google in the list and click to expand
+3. Enable the Google provider
+4. To get your Google OAuth credentials:
+   - Go to [Google Cloud Console](https://console.cloud.google.com/)
+   - Create a new project or select an existing one
+   - Enable the Google+ API or Google Identity API
+   - Go to "Credentials" and create an OAuth 2.0 Client ID
+   - Choose "Web application" as the application type
+   - Add authorized redirect URIs:
+     - `https://<your-project-ref>.supabase.co/auth/v1/callback` (for production)
+     - `http://localhost:5173` (for development)
+   - Copy the Client ID and Client Secret
+5. In Supabase:
+   - Paste your Google Client ID
+   - Paste your Google Client Secret
+   - Save the configuration
+
+#### Discord OAuth Authentication
+1. Go to Authentication > Providers
+2. Find Discord in the list and click to expand
+3. Enable the Discord provider
+4. To get your Discord OAuth credentials:
+   - Go to [Discord Developer Portal](https://discord.com/developers/applications)
+   - Click "New Application" and give it a name
+   - Go to the OAuth2 section in the sidebar
+   - Add redirect URLs:
+     - `https://<your-project-ref>.supabase.co/auth/v1/callback` (for production)
+     - `http://localhost:5173` (for development)
+   - Copy the Client ID from the OAuth2 page
+   - Click "Reset Secret" to generate a Client Secret and copy it
+5. In Supabase:
+   - Paste your Discord Client ID
+   - Paste your Discord Client Secret
+   - Save the configuration
+6. Optional Discord App Configuration:
+   - In Discord Developer Portal, go to "Bot" section
+   - You can customize your app's appearance with an avatar
+   - Under "OAuth2 > URL Generator", you can test your OAuth flow
 
 ### 4. Configure Authentication Settings
 
 1. Go to Authentication > Settings
 2. Under "General Settings":
    - Set site URL to your production URL (or http://localhost:5173 for development)
-   - Add http://localhost:5173 to redirect URLs
+   - Add the following to redirect URLs:
+     - `http://localhost:5173`
+     - `http://localhost:5173/*` (for OAuth callbacks)
+     - Your production URL when deploying
 3. Under "Email Settings":
    - Configure SMTP if you want custom email sending (optional)
    - Otherwise, Supabase will handle emails
@@ -41,9 +86,22 @@
 
 1. Start your development server: `pnpm dev`
 2. Open your browser to http://localhost:5173
-3. Try creating a new account
-4. Check your email for confirmation
-5. Confirm your account and sign in
+3. Test authentication methods:
+   
+   **Email/Password:**
+   - Try creating a new account
+   - Check your email for confirmation
+   - Confirm your account and sign in
+   
+   **Google OAuth:**
+   - Click "Continue with Google"
+   - Sign in with your Google account
+   - You should be redirected back to the app and logged in
+   
+   **Discord OAuth:**
+   - Click "Continue with Discord"
+   - Authorize the application in Discord
+   - You should be redirected back to the app and logged in
 
 ## Environment Variables
 
@@ -106,7 +164,7 @@ All tables have RLS enabled:
    - Move OpenAI API calls to Edge Functions
    - Configure custom domain
    - Set up proper email templates
-   - Enable additional authentication providers if desired
+   - Enable additional authentication providers (GitHub, Twitter, etc.)
 
 2. **Features to Implement**
    - User profile management UI

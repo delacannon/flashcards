@@ -14,6 +14,9 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Sparkles } from 'lucide-react';
+import { GoogleButton } from '@/components/ui/google-button';
+import { DiscordButton } from '@/components/ui/discord-button';
+import { Separator } from '@/components/ui/separator';
 
 interface AuthModalProps {
   open: boolean;
@@ -22,11 +25,13 @@ interface AuthModalProps {
 }
 
 export function AuthModal({ open, onOpenChange, message }: AuthModalProps) {
-  const { signIn, signUp, resetPassword } = useAuth();
+  const { signIn, signUp, signInWithGoogle, signInWithDiscord, resetPassword } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [discordLoading, setDiscordLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [resetEmail, setResetEmail] = useState('');
@@ -96,6 +101,32 @@ export function AuthModal({ open, onOpenChange, message }: AuthModalProps) {
     }
     
     setLoading(false);
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError(null);
+    setGoogleLoading(true);
+
+    const { error } = await signInWithGoogle();
+    
+    if (error) {
+      setError(error.message);
+      setGoogleLoading(false);
+    }
+    // Note: OAuth redirects, so we don't set loading to false here
+  };
+
+  const handleDiscordSignIn = async () => {
+    setError(null);
+    setDiscordLoading(true);
+
+    const { error } = await signInWithDiscord();
+    
+    if (error) {
+      setError(error.message);
+      setDiscordLoading(false);
+    }
+    // Note: OAuth redirects, so we don't set loading to false here
   };
 
   const resetForm = () => {
@@ -182,10 +213,34 @@ export function AuthModal({ open, onOpenChange, message }: AuthModalProps) {
             </TabsList>
             
             <TabsContent value="signin">
-              <form onSubmit={handleSignIn}>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="signin-email">Email</Label>
+              <div className="space-y-4">
+                <GoogleButton
+                  onClick={handleGoogleSignIn}
+                  loading={googleLoading}
+                  variant="signin"
+                />
+                
+                <DiscordButton
+                  onClick={handleDiscordSignIn}
+                  loading={discordLoading}
+                  variant="signin"
+                />
+                
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <Separator className="w-full" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">
+                      Or continue with email
+                    </span>
+                  </div>
+                </div>
+                
+                <form onSubmit={handleSignIn}>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="signin-email">Email</Label>
                     <Input
                       id="signin-email"
                       type="email"
@@ -241,15 +296,40 @@ export function AuthModal({ open, onOpenChange, message }: AuthModalProps) {
                       Sign In
                     </Button>
                   </div>
-                </div>
-              </form>
+                  </div>
+                </form>
+              </div>
             </TabsContent>
             
             <TabsContent value="signup">
-              <form onSubmit={handleSignUp}>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-email">Email</Label>
+              <div className="space-y-4">
+                <GoogleButton
+                  onClick={handleGoogleSignIn}
+                  loading={googleLoading}
+                  variant="signup"
+                />
+                
+                <DiscordButton
+                  onClick={handleDiscordSignIn}
+                  loading={discordLoading}
+                  variant="signup"
+                />
+                
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <Separator className="w-full" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">
+                      Or sign up with email
+                    </span>
+                  </div>
+                </div>
+                
+                <form onSubmit={handleSignUp}>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-email">Email</Label>
                     <Input
                       id="signup-email"
                       type="email"
@@ -307,8 +387,9 @@ export function AuthModal({ open, onOpenChange, message }: AuthModalProps) {
                   <p className="text-xs text-center text-muted-foreground">
                     By signing up, you'll get access to AI-powered flashcard generation
                   </p>
-                </div>
-              </form>
+                  </div>
+                </form>
+              </div>
             </TabsContent>
           </Tabs>
         )}
