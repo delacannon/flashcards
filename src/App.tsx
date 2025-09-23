@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { queryClient } from '@/lib/query-client';
+import { VirtualizedCardGrid } from '@/components/VirtualizedCardGrid';
 // Using simplified Supabase auth context (no database dependencies)
 import { AuthProvider, useAuth } from '@/contexts/AuthContextSimple';
 import { AuthModal } from '@/components/AuthModal';
@@ -20,7 +21,6 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from '@/components/ui/sidebar';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -31,7 +31,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit2, Trash2, Copy, Play } from 'lucide-react';
+import { Copy } from 'lucide-react';
 import { FlashcardSetView } from '@/components/FlashcardSetView';
 import { PlayMode } from '@/components/PlayMode';
 import { Label } from '@/components/ui/label';
@@ -83,6 +83,15 @@ function MainApp() {
   const updateSetMutation = useUpdateSet();
   const deleteSetMutation = useDeleteSet();
   const migrateToSupabaseMutation = useMigrateToSupabase();
+
+  // Sort flashcard sets by creation date (newest first)
+  const sortedFlashcardSets = useMemo(() => {
+    return [...flashcardSets].sort((a, b) => {
+      const dateA = new Date(a.createdAt || 0).getTime();
+      const dateB = new Date(b.createdAt || 0).getTime();
+      return dateB - dateA; // Newest first
+    });
+  }, [flashcardSets]);
 
   // Update AI service with current user
   useEffect(() => {
@@ -181,23 +190,23 @@ function MainApp() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [setToDelete, setSetToDelete] = useState<string | null>(null);
 
-  const handleSetClick = (set: FlashcardSet) => {
+  const handleSetClick = useCallback((set: FlashcardSet) => {
     setSelectedSet(set);
-  };
+  }, []);
 
-  const handlePlaySet = (e: React.MouseEvent, set: FlashcardSet) => {
+  const handlePlaySet = useCallback((e: React.MouseEvent, set: FlashcardSet) => {
     e.stopPropagation();
     const cardCount = set.cardCount ?? set.flashcards?.length ?? 0;
     if (cardCount > 0) {
       setPlayingSet(set);
     }
-  };
+  }, []);
 
-  const handleExitPlay = () => {
+  const handleExitPlay = useCallback(() => {
     setPlayingSet(null);
-  };
+  }, []);
 
-  const handleEditSetName = (e: React.MouseEvent, setId: string) => {
+  const handleEditSetName = useCallback((e: React.MouseEvent, setId: string) => {
     e.stopPropagation();
     const set = flashcardSets.find((s) => s.id === setId);
     if (set) {
@@ -248,13 +257,13 @@ function MainApp() {
       setIsModalOpen(true);
       setIsCreatingSet(false);
     }
-  };
+  }, [flashcardSets]);
 
-  const handleDeleteSet = (e: React.MouseEvent, setId: string) => {
+  const handleDeleteSet = useCallback((e: React.MouseEvent, setId: string) => {
     e.stopPropagation();
     setSetToDelete(setId);
     setDeleteConfirmOpen(true);
-  };
+  }, []);
 
   const confirmDeleteSet = async () => {
     if (setToDelete) {
@@ -280,7 +289,7 @@ function MainApp() {
     setSetToDelete(null);
   };
 
-  const handleDuplicateSet = (e: React.MouseEvent, setId: string) => {
+  const handleDuplicateSet = useCallback((e: React.MouseEvent, setId: string) => {
     e.stopPropagation();
     const setToDuplicate = flashcardSets.find((s) => s.id === setId);
     if (setToDuplicate) {
@@ -296,9 +305,9 @@ function MainApp() {
         },
       });
     }
-  };
+  }, [flashcardSets, createSetMutation]);
 
-  const handleAddSet = () => {
+  const handleAddSet = useCallback(() => {
     setInputValue('');
     setConfigFlipAxis('Y');
     setConfigQuestionBgColor('#ffffff');
@@ -320,7 +329,7 @@ function MainApp() {
     setIsCreatingSet(true);
     setEditingSetId(null);
     setIsModalOpen(true);
-  };
+  }, []);
 
   const copyQuestionToAnswer = () => {
     // Copy all question side styles to answer side
@@ -451,9 +460,9 @@ function MainApp() {
     });
   };
 
-  const handleBackToSets = () => {
+  const handleBackToSets = useCallback(() => {
     setSelectedSet(null);
-  };
+  }, []);
 
   // Show loading only for a moment, then continue even if not logged in
   if (loading) {
@@ -529,83 +538,19 @@ function MainApp() {
             <div className='flex justify-between items-center mb-4'>
               <h1 className='text-2xl font-bold'>My Flashcard Sets</h1>
               <span className='text-sm text-muted-foreground'>
-                {flashcardSets.length}{' '}
-                {flashcardSets.length === 1 ? 'set' : 'sets'}
+                {sortedFlashcardSets.length}{' '}
+                {sortedFlashcardSets.length === 1 ? 'set' : 'sets'}
               </span>
             </div>
-            <div className='grid auto-rows-min gap-4 md:grid-cols-3 lg:grid-cols-4'>
-              {flashcardSets.map((set) => (
-                <Card
-                  key={set.id}
-                  className='relative group cursor-pointer hover:shadow-lg transition-shadow bg-muted/50'
-                  onClick={() => handleSetClick(set)}
-                >
-                  <div className='absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 z-10'>
-                    {(set.cardCount ?? set.flashcards?.length ?? 0) > 0 && (
-                      <Button
-                        size='icon'
-                        variant='ghost'
-                        className='h-8 w-8'
-                        onClick={(e) => handlePlaySet(e, set)}
-                      >
-                        <Play className='h-4 w-4' />
-                      </Button>
-                    )}
-                    <Button
-                      size='icon'
-                      variant='ghost'
-                      className='h-8 w-8'
-                      onClick={(e) => handleEditSetName(e, set.id)}
-                    >
-                      <Edit2 className='h-4 w-4' />
-                    </Button>
-                    <Button
-                      size='icon'
-                      variant='ghost'
-                      className='h-8 w-8'
-                      onClick={(e) => handleDuplicateSet(e, set.id)}
-                    >
-                      <Copy className='h-4 w-4' />
-                    </Button>
-                    <Button
-                      size='icon'
-                      variant='ghost'
-                      className='h-8 w-8'
-                      onClick={(e) => handleDeleteSet(e, set.id)}
-                    >
-                      <Trash2 className='h-4 w-4' />
-                    </Button>
-                  </div>
-                  <CardHeader>
-                    <CardTitle className='text-lg'>{set.name}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className='text-sm text-muted-foreground'>
-                      {set.cardCount ?? set.flashcards?.length ?? 0}{' '}
-                      {(set.cardCount ?? set.flashcards?.length ?? 0) === 1
-                        ? 'card'
-                        : 'cards'}
-                    </p>
-                    <p className='text-xs text-muted-foreground mt-2'>
-                      Created {set.createdAt ? new Date(set.createdAt).toLocaleDateString() : 'Unknown'}
-                    </p>
-                  </CardContent>
-                </Card>
-              ))}
-              <Card
-                className='cursor-pointer hover:shadow-lg transition-shadow border-2 border-dashed border-muted-foreground/25 bg-transparent'
-                onClick={handleAddSet}
-              >
-                <CardContent className='flex h-full items-center justify-center p-4 min-h-[180px]'>
-                  <div className='flex flex-col items-center gap-2'>
-                    <div className='rounded-full bg-primary/10 p-3'>
-                      <Plus className='h-6 w-6 text-primary' />
-                    </div>
-                    <p className='text-sm text-muted-foreground'>Add Set</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            <VirtualizedCardGrid
+              flashcardSets={sortedFlashcardSets}
+              onSetClick={handleSetClick}
+              onPlaySet={handlePlaySet}
+              onEditSetName={handleEditSetName}
+              onDuplicateSet={handleDuplicateSet}
+              onDeleteSet={handleDeleteSet}
+              onAddSet={handleAddSet}
+            />
           </div>
         )}
 

@@ -1,24 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragOverlay,
-} from '@dnd-kit/core';
-import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
-import { restrictToWindowEdges } from '@dnd-kit/modifiers';
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  rectSortingStrategy,
-} from '@dnd-kit/sortable';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Dialog,
   DialogContent,
@@ -27,9 +10,8 @@ import {
   DialogFooter,
   DialogDescription,
 } from '@/components/ui/dialog';
-import { ArrowLeft, Plus, Play, MoreVertical, Download, Upload, FileUp, Replace, ListPlus } from 'lucide-react';
+import { ArrowLeft, Play, MoreVertical, Download, Upload, FileUp, Replace, ListPlus, LayoutGrid, Table as TableIcon, Search, X } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
-import { SortableFlipCard } from '@/components/SortableFlipCard';
 import { PlayMode } from '@/components/PlayMode';
 import { aiService } from '@/services/ai';
 import { aiServiceAuth } from '@/services/ai-auth';
@@ -40,11 +22,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { PlaceholderCardGrid, PlaceholderCard } from '@/components/ui/placeholder-card';
 import { Progress } from '@/components/ui/progress';
 import { AlertCircle, Sparkles } from 'lucide-react';
-import { getPatternById } from '@/lib/patterns';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import rehypeRaw from 'rehype-raw';
-import { remarkHighlight } from '@/lib/remarkHighlight';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -52,6 +29,9 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { FlashcardTableView } from '@/components/FlashcardTableView';
+import { VirtualizedFlashcardGrid } from '@/components/VirtualizedFlashcardGrid';
 
 import type { FlashcardSet, Flashcard, FlashcardSetConfig } from '@/types';
 import { useFlashcardSet } from '@/hooks/useFlashcards';
@@ -94,7 +74,6 @@ export function FlashcardSetView({
     null
   );
   const [isPlaying, setIsPlaying] = useState(false);
-  const [activeId, setActiveId] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
   const [generationError, setGenerationError] = useState<string | null>(null);
@@ -110,12 +89,37 @@ export function FlashcardSetView({
   const [importPreview, setImportPreview] = useState<Flashcard[]>([]);
   const [importMode, setImportMode] = useState<'replace' | 'append'>('append');
   
-  // Sync local flashcards when flashcards change (but not during drag operations)
+  // View mode state
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
+  
+  // Search state
+  const [searchInput, setSearchInput] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // Sync local flashcards when flashcards change
   useEffect(() => {
-    if (!activeId) {
-      setLocalFlashcards(flashcards);
-    }
-  }, [flashcards, activeId]);
+    setLocalFlashcards(flashcards);
+  }, [flashcards]);
+  
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchQuery(searchInput);
+    }, 300); // 300ms delay
+    
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+  
+  // Filter flashcards based on search query
+  const filteredFlashcards = useMemo(() => {
+    if (!searchQuery.trim()) return localFlashcards;
+    
+    const query = searchQuery.toLowerCase().trim();
+    return localFlashcards.filter(card => 
+      card.question.toLowerCase().includes(query) ||
+      card.answer.toLowerCase().includes(query)
+    );
+  }, [localFlashcards, searchQuery]);
 
   // Generate AI flashcards if prompt is provided and set is empty
   useEffect(() => {
@@ -198,73 +202,31 @@ export function FlashcardSetView({
     generateCards();
   }, [currentSet.id, flashcards.length, currentSet.config.aiPrompt, isGenerating, isLoadingSet, showSkeleton]); // Dependencies for AI generation
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
 
-  const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active.id as string);
-  };
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-
-    if (over && active.id !== over.id) {
-      const oldIndex = localFlashcards.findIndex((fc) => fc.id === active.id);
-      const newIndex = localFlashcards.findIndex((fc) => fc.id === over.id);
-
-      const newFlashcards = arrayMove(localFlashcards, oldIndex, newIndex);
-      
-      // Update local state immediately for optimistic UI
-      setLocalFlashcards(newFlashcards);
-      
-      // Update the parent state and save to storage in background
-      const updatedSet = {
-        ...currentSet,
-        flashcards: newFlashcards,
-      };
-      
-      // Don't await - let it save in the background
-      setTimeout(() => {
-        onUpdateSet(updatedSet);
-      }, 0);
-    }
-    setActiveId(null);
-  };
-
-  const activeFlashcard = activeId
-    ? localFlashcards.find((fc) => fc.id === activeId)
-    : null;
-
-  const handleEditFlashcard = (flashcard: Flashcard) => {
+  const handleEditFlashcard = useCallback((flashcard: Flashcard) => {
     setSelectedFlashcard(flashcard);
     setQuestion(flashcard.question);
     setAnswer(flashcard.answer);
     setIsEditing(true);
-  };
+  }, []);
 
-  const handleCreateFlashcard = () => {
+  const handleCreateFlashcard = useCallback(() => {
     setQuestion('');
     setAnswer('');
     setIsCreating(true);
-  };
+  }, []);
 
-  const handlePlayMode = () => {
-    if (localFlashcards.length > 0) {
+  const handlePlayMode = useCallback(() => {
+    // Play filtered flashcards if search is active, otherwise all cards
+    const cardsToPlay = searchQuery ? filteredFlashcards : localFlashcards;
+    if (cardsToPlay.length > 0) {
       setIsPlaying(true);
     }
-  };
+  }, [localFlashcards, filteredFlashcards, searchQuery]);
 
-  const handleExitPlay = () => {
+  const handleExitPlay = useCallback(() => {
     setIsPlaying(false);
-  };
+  }, []);
 
   const handleSaveFlashcard = () => {
     if (isCreating) {
@@ -298,7 +260,7 @@ export function FlashcardSetView({
     setSelectedFlashcard(null);
   };
 
-  const handleUpdateFlashcardContent = (
+  const handleUpdateFlashcardContent = useCallback((
     id: string,
     newQuestion: string,
     newAnswer: string
@@ -312,15 +274,15 @@ export function FlashcardSetView({
       flashcards: updatedFlashcards,
     };
     onUpdateSet(updatedSet);
-  };
+  }, [localFlashcards, currentSet, onUpdateSet]);
 
-  const handleDeleteFlashcard = (flashcardId: string) => {
+  const handleDeleteFlashcard = useCallback((flashcardId: string) => {
     const flashcard = localFlashcards.find((fc) => fc.id === flashcardId);
     if (flashcard) {
       setFlashcardToDelete(flashcard);
       setDeleteConfirmOpen(true);
     }
-  };
+  }, [localFlashcards]);
 
   const confirmDeleteFlashcard = () => {
     if (flashcardToDelete) {
@@ -343,13 +305,13 @@ export function FlashcardSetView({
     setFlashcardToDelete(null);
   };
 
-  const handleCancel = () => {
+  const handleCancel = useCallback(() => {
     setIsEditing(false);
     setIsCreating(false);
     setQuestion('');
     setAnswer('');
     setSelectedFlashcard(null);
-  };
+  }, []);
 
   const handleDownloadCSV = () => {
     // Prepare CSV content
@@ -542,7 +504,9 @@ export function FlashcardSetView({
   };
 
   if (isPlaying) {
-    return <PlayMode set={{ ...currentSet, flashcards: localFlashcards }} onExit={handleExitPlay} />;
+    // Play filtered flashcards if search is active, otherwise all cards
+    const cardsToPlay = searchQuery ? filteredFlashcards : localFlashcards;
+    return <PlayMode set={{ ...currentSet, flashcards: cardsToPlay }} onExit={handleExitPlay} />;
   }
 
   // Show skeleton cards when lazy loading the set
@@ -656,6 +620,20 @@ export function FlashcardSetView({
         </Button>
         <h1 className='text-2xl font-bold flex-1'>{currentSet.name}</h1>
         <div className='flex items-center gap-3'>
+          {/* View Mode Toggle */}
+          {localFlashcards.length > 0 && (
+            <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as 'cards' | 'table')}>
+              <ToggleGroupItem value="cards" aria-label="Card view">
+                <LayoutGrid className="h-4 w-4 mr-2" />
+                Cards
+              </ToggleGroupItem>
+              <ToggleGroupItem value="table" aria-label="Table view">
+                <TableIcon className="h-4 w-4 mr-2" />
+                Table
+              </ToggleGroupItem>
+            </ToggleGroup>
+          )}
+          
           {localFlashcards.length > 0 && (
             <>
               <Button
@@ -701,6 +679,38 @@ export function FlashcardSetView({
         </div>
       </div>
 
+      {/* Search Bar */}
+      {localFlashcards.length > 0 && (
+        <div className="px-4 pb-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <Input
+              type="text"
+              placeholder="Search cards by question or answer..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="pl-10 pr-10"
+            />
+            {searchInput && (
+              <button
+                onClick={() => {
+                  setSearchInput('');
+                  setSearchQuery('');
+                }}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 hover:opacity-80"
+              >
+                <X className="h-4 w-4 text-muted-foreground" />
+              </button>
+            )}
+          </div>
+          {searchQuery && (
+            <p className="text-sm text-muted-foreground mt-2">
+              Showing {filteredFlashcards.length} of {localFlashcards.length} cards
+            </p>
+          )}
+        </div>
+      )}
+
       <div
         className='flex flex-1 flex-col gap-4 p-4'
         style={{
@@ -710,8 +720,25 @@ export function FlashcardSetView({
           backgroundSize: '20px 20px',
         }}
       >
-        {/* AI Generation Progress */}
-        {isGenerating && (
+        {/* Table View */}
+        {viewMode === 'table' ? (
+          <FlashcardTableView
+            flashcards={filteredFlashcards}
+            config={currentSet.config}
+            onUpdateFlashcards={(updatedFlashcards) => {
+              setLocalFlashcards(updatedFlashcards);
+              const updatedSet = {
+                ...currentSet,
+                flashcards: updatedFlashcards,
+              };
+              onUpdateSet(updatedSet);
+            }}
+            onDeleteFlashcard={handleDeleteFlashcard}
+          />
+        ) : (
+          <>
+            {/* AI Generation Progress */}
+            {isGenerating && (
           <div className='mb-4 p-4 bg-background rounded-lg border'>
             <div className='flex items-center gap-2 mb-2'>
               <Sparkles className='h-4 w-4 text-primary animate-pulse' />
@@ -737,166 +764,75 @@ export function FlashcardSetView({
           </div>
         )}
 
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-          modifiers={[restrictToWindowEdges]}
-        >
-          <SortableContext
-            items={localFlashcards.map((fc) => fc.id)}
-            strategy={rectSortingStrategy}
-          >
-            <div className='grid auto-rows-min gap-4 md:grid-cols-3 lg:grid-cols-4'>
-              {/* Show skeleton cards while generating */}
-              {isGenerating && localFlashcards.length === 0 && (
-                <>
-                  {Array.from({ length: 3 }).map((_, index) => (
-                    <PlaceholderCard 
-                      key={`placeholder-gen-${index}`}
-                      bgColor={currentSet.config?.questionBgColor}
-                      borderStyle={currentSet.config?.questionBorderStyle}
-                      borderWidth={currentSet.config?.questionBorderWidth}
-                      borderColor={currentSet.config?.questionBorderColor}
-                      backgroundImage={currentSet.config?.questionBackgroundImage || currentSet.config?.backgroundImage}
-                      backgroundImageOpacity={currentSet.config?.questionBackgroundImageOpacity ?? currentSet.config?.backgroundImageOpacity}
-                    />
-                  ))}
-                </>
-              )}
-              
-              {localFlashcards.map((flashcard) => (
-                <SortableFlipCard
-                  key={flashcard.id}
-                  id={flashcard.id}
-                  question={flashcard.question}
-                  answer={flashcard.answer}
-                  flipAxis={currentSet.config?.flipAxis || 'Y'}
-                  questionBgColor={currentSet.config?.questionBgColor}
-                  questionFgColor={currentSet.config?.questionFgColor}
-                  questionFontSize={currentSet.config?.questionFontSize}
-                  questionFontFamily={currentSet.config?.questionFontFamily}
-                  questionBackgroundPattern={
-                    currentSet.config?.questionBackgroundPattern
-                  }
-                  answerBgColor={currentSet.config?.answerBgColor}
-                  answerFgColor={currentSet.config?.answerFgColor}
-                  answerFontSize={currentSet.config?.answerFontSize}
-                  answerFontFamily={currentSet.config?.answerFontFamily}
-                  answerBackgroundPattern={currentSet.config?.answerBackgroundPattern}
-                  questionBackgroundImage={currentSet.config?.questionBackgroundImage}
-                  questionBackgroundImageOpacity={currentSet.config?.questionBackgroundImageOpacity}
-                  answerBackgroundImage={currentSet.config?.answerBackgroundImage}
-                  answerBackgroundImageOpacity={currentSet.config?.answerBackgroundImageOpacity}
-                  backgroundImage={currentSet.config?.backgroundImage}
-                  backgroundImageOpacity={currentSet.config?.backgroundImageOpacity}
-                  questionBorderStyle={currentSet.config?.questionBorderStyle}
-                  questionBorderWidth={currentSet.config?.questionBorderWidth}
-                  questionBorderColor={currentSet.config?.questionBorderColor}
-                  answerBorderStyle={currentSet.config?.answerBorderStyle}
-                  answerBorderWidth={currentSet.config?.answerBorderWidth}
-                  answerBorderColor={currentSet.config?.answerBorderColor}
-                  onEdit={() => handleEditFlashcard(flashcard)}
-                  onDelete={() => handleDeleteFlashcard(flashcard.id)}
-                  onUpdateContent={handleUpdateFlashcardContent}
-                />
-              ))}
-
-              <Card
-                className='min-h-[200px] cursor-pointer hover:shadow-lg transition-shadow border-2 border-dashed border-muted-foreground/25 bg-transparent'
-                onClick={handleCreateFlashcard}
-              >
-                <CardContent className='flex h-full min-h-[200px] items-center justify-center p-4'>
-                  <div className='flex flex-col items-center gap-2'>
-                    <div className='rounded-full bg-primary/10 p-3'>
-                      <Plus className='h-6 w-6 text-primary' />
-                    </div>
-                    <p className='text-sm text-muted-foreground'>Add Card</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </SortableContext>
-          <DragOverlay>
-            {activeFlashcard ? (
-              <div className='opacity-90 shadow-2xl rounded-xl'>
-                <div
-                  className='min-h-[200px] rounded-xl relative overflow-hidden'
-                  style={{
-                    borderStyle: currentSet.config?.questionBorderStyle === 'none' ? 'none' : (currentSet.config?.questionBorderStyle || 'solid'),
-                    borderWidth: currentSet.config?.questionBorderStyle === 'none' ? '0' : (currentSet.config?.questionBorderWidth || '1px'),
-                    borderColor: currentSet.config?.questionBorderColor || '#e5e7eb',
-                    ...(currentSet.config?.questionBackgroundPattern && currentSet.config?.questionBackgroundPattern !== 'none'
-                      ? getPatternById(currentSet.config?.questionBackgroundPattern)?.getCSS(currentSet.config?.questionBgColor || '#ffffff')
-                      : { backgroundColor: currentSet.config?.questionBgColor || '#ffffff' }),
-                  }}
-                >
-                  {/* Background Image Layer */}
-                  {(currentSet.config?.questionBackgroundImage || currentSet.config?.backgroundImage) && (
-                    <div
-                      className='absolute inset-0 z-0'
-                      style={{
-                        backgroundImage: `url(${currentSet.config?.questionBackgroundImage || currentSet.config?.backgroundImage})`,
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                        backgroundRepeat: 'no-repeat',
-                        opacity: currentSet.config?.questionBackgroundImageOpacity ?? currentSet.config?.backgroundImageOpacity ?? 0.3,
-                      }}
-                    />
-                  )}
-                  {/* Content Layer */}
-                  <div 
-                    className='relative z-10 p-6 flex items-center justify-center min-h-[200px]'
-                    style={{
-                      color: currentSet.config?.questionFgColor || '#000000',
-                      fontFamily: currentSet.config?.questionFontFamily || 'inherit',
-                    }}
-                  >
-                    <div 
-                      className='text-center w-full prose prose-sm max-w-none'
-                      style={{
-                        fontSize: currentSet.config?.questionFontSize || '16px',
-                        fontFamily: currentSet.config?.questionFontFamily || 'inherit',
-                        color: currentSet.config?.questionFgColor || 'inherit',
-                      }}
-                    >
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm, remarkHighlight]}
-                        rehypePlugins={[rehypeRaw]}
-                        components={{
-                          p: ({ children }) => (
-                            <p className='m-0' style={{ fontFamily: 'inherit' }}>
-                              {children}
-                            </p>
-                          ),
-                          mark: ({ children }) => (
-                            <mark className='bg-yellow-200 px-1 rounded'>
-                              {children}
-                            </mark>
-                          ),
-                          strong: ({ children }) => (
-                            <strong className='font-bold'>{children}</strong>
-                          ),
-                          em: ({ children }) => (
-                            <em className='italic'>{children}</em>
-                          ),
-                          code: ({ children }) => (
-                            <code className='bg-gray-100 px-1 py-0.5 rounded text-sm'>
-                              {children}
-                            </code>
-                          ),
-                        }}
-                      >
-                        {activeFlashcard.question || 'Empty question'}
-                      </ReactMarkdown>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-          </DragOverlay>
-        </DndContext>
+        {/* Show skeleton cards while generating */}
+        {isGenerating && localFlashcards.length === 0 && (
+          <div className='grid auto-rows-min gap-4 md:grid-cols-3 lg:grid-cols-4'>
+            {Array.from({ length: 3 }).map((_, index) => (
+              <PlaceholderCard 
+                key={`placeholder-gen-${index}`}
+                bgColor={currentSet.config?.questionBgColor}
+                borderStyle={currentSet.config?.questionBorderStyle}
+                borderWidth={currentSet.config?.questionBorderWidth}
+                borderColor={currentSet.config?.questionBorderColor}
+                backgroundImage={currentSet.config?.questionBackgroundImage || currentSet.config?.backgroundImage}
+                backgroundImageOpacity={currentSet.config?.questionBackgroundImageOpacity ?? currentSet.config?.backgroundImageOpacity}
+              />
+            ))}
+          </div>
+        )}
+        
+        {/* Show empty state when search has no results */}
+        {searchQuery && filteredFlashcards.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16">
+            <Search className="h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium mb-2">No cards found</h3>
+            <p className="text-muted-foreground text-center">
+              No cards match "{searchQuery}".<br />
+              Try a different search term.
+            </p>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSearchInput('');
+                setSearchQuery('');
+              }}
+              className="mt-4"
+            >
+              Clear search
+            </Button>
+          </div>
+        ) : (
+        /* Use virtualized grid when not generating */
+        !isGenerating || localFlashcards.length > 0 ? (
+          <VirtualizedFlashcardGrid
+            flashcards={filteredFlashcards}
+            config={currentSet.config}
+            searchQuery={searchQuery}
+            onCreateFlashcard={handleCreateFlashcard}
+            onEditFlashcard={handleEditFlashcard}
+            onDeleteFlashcard={handleDeleteFlashcard}
+            onUpdateFlashcardContent={handleUpdateFlashcardContent}
+            onReorder={(newFlashcards) => {
+              // When reordering filtered results, we need to update the full list
+              const updatedFullList = [...localFlashcards];
+              newFlashcards.forEach(card => {
+                const originalIndex = updatedFullList.findIndex(c => c.id === card.id);
+                if (originalIndex !== -1) {
+                  updatedFullList[originalIndex] = card;
+                }
+              });
+              setLocalFlashcards(updatedFullList);
+              const updatedSet = {
+                ...currentSet,
+                flashcards: updatedFullList,
+              };
+              onUpdateSet(updatedSet);
+            }}
+          />
+        ) : null
+        )}
+        </>
+        )}
       </div>
 
       <Dialog
@@ -922,6 +858,7 @@ export function FlashcardSetView({
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
                 className='min-h-[80px]'
+                autoFocus={false}
               />
             </div>
             <div className='grid gap-2'>
@@ -934,6 +871,7 @@ export function FlashcardSetView({
                 value={answer}
                 onChange={(e) => setAnswer(e.target.value)}
                 className='min-h-[80px]'
+                autoFocus={false}
               />
             </div>
           </div>

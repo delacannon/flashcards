@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { useSpring, animated } from '@react-spring/web';
 import { Button } from '@/components/ui/button';
 import { Edit2, Trash2 } from 'lucide-react';
@@ -52,6 +52,7 @@ interface EditableFlipCardProps {
   answerBorderStyle?: string;
   answerBorderWidth?: string;
   answerBorderColor?: string;
+  autoFlip?: boolean;
   onEdit: () => void;
   onDelete: () => void;
   onUpdateContent: (id: string, question: string, answer: string) => void;
@@ -59,7 +60,7 @@ interface EditableFlipCardProps {
   dragHandle?: React.ReactNode;
 }
 
-export function EditableFlipCard({
+export const EditableFlipCard = memo(function EditableFlipCard({
   id,
   question,
   answer,
@@ -86,15 +87,21 @@ export function EditableFlipCard({
   answerBorderStyle = 'solid',
   answerBorderWidth = '1px',
   answerBorderColor = '#e5e7eb',
+  autoFlip = false,
   onEdit,
   onDelete,
   onUpdateContent,
   className,
   dragHandle,
 }: EditableFlipCardProps) {
-  const [flipped, setFlipped] = useState(false);
+  const [flipped, setFlipped] = useState(autoFlip);
   const [isEditingQuestion, setIsEditingQuestion] = useState(false);
   const [isEditingAnswer, setIsEditingAnswer] = useState(false);
+  
+  // Auto-flip when autoFlip prop changes
+  useEffect(() => {
+    setFlipped(autoFlip);
+  }, [autoFlip]);
 
   const questionEditor = useEditor({
     extensions: [
@@ -497,4 +504,4 @@ export function EditableFlipCard({
       </animated.div>
     </div>
   );
-}
+});

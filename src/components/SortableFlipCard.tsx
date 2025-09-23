@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical } from 'lucide-react';
@@ -36,12 +37,13 @@ interface SortableFlipCardProps {
   answerBorderStyle?: string;
   answerBorderWidth?: string;
   answerBorderColor?: string;
+  autoFlip?: boolean;
   onEdit: () => void;
   onDelete: () => void;
   onUpdateContent: (id: string, question: string, answer: string) => void;
 }
 
-export function SortableFlipCard(props: SortableFlipCardProps) {
+export const SortableFlipCard = memo(function SortableFlipCard(props: SortableFlipCardProps) {
   const {
     attributes,
     listeners,
@@ -86,9 +88,10 @@ export function SortableFlipCard(props: SortableFlipCardProps) {
       {/* Flashcard with drag handle passed as prop */}
       <EditableFlipCard
         {...props}
+        autoFlip={props.autoFlip}
         className='min-h-[200px]'
         dragHandle={dragHandleElement}
       />
     </div>
   );
-}
+});

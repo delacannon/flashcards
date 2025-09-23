@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { useSpring, animated } from '@react-spring/web';
+import { useState, memo, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Edit2, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -7,6 +6,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import { remarkHighlight } from '@/lib/remarkHighlight';
+import './FlipCard.css';
 
 interface FlipCardProps {
   question: string;
@@ -42,7 +42,7 @@ interface FlipCardProps {
   className?: string;
 }
 
-export function FlipCard({ 
+export const FlipCard = memo(function FlipCard({ 
   question, 
   answer, 
   flipAxis = 'Y', 
@@ -72,38 +72,40 @@ export function FlipCard({
 }: FlipCardProps) {
   const [flipped, setFlipped] = useState(false);
 
-  const { transform, opacity } = useSpring({
-    opacity: flipped ? 1 : 0,
-    transform: `perspective(600px) rotate${flipAxis}(${flipped ? 180 : 0}deg)`,
-    config: { mass: 5, tension: 500, friction: 80 },
-  });
-
   const handleClick = () => {
     setFlipped(!flipped);
   };
 
+  // Memoize style objects to prevent recreation on every render
+  const questionStyles = useMemo(() => ({
+    borderStyle: questionBorderStyle === 'none' ? 'none' : questionBorderStyle,
+    borderWidth: questionBorderStyle === 'none' ? '0' : questionBorderWidth,
+    borderColor: questionBorderColor,
+    backgroundColor: questionBgColor || undefined,
+    color: questionFgColor || undefined,
+    fontSize: questionFontSize || undefined,
+    fontFamily: questionFontFamily || undefined
+  }), [questionBorderStyle, questionBorderWidth, questionBorderColor, questionBgColor, questionFgColor, questionFontSize, questionFontFamily]);
+
+  const answerStyles = useMemo(() => ({
+    borderStyle: answerBorderStyle === 'none' ? 'none' : answerBorderStyle,
+    borderWidth: answerBorderStyle === 'none' ? '0' : answerBorderWidth,
+    borderColor: answerBorderColor,
+    backgroundColor: answerBgColor || undefined,
+    color: answerFgColor || undefined,
+    fontSize: answerFontSize || undefined,
+    fontFamily: answerFontFamily || undefined
+  }), [answerBorderStyle, answerBorderWidth, answerBorderColor, answerBgColor, answerFgColor, answerFontSize, answerFontFamily]);
+
   return (
-    <div className={cn('relative group cursor-pointer', className)} onClick={handleClick}>
-      <animated.div
-        className='absolute w-full h-full'
-        style={{
-          opacity: opacity.to(o => 1 - o),
-          transform,
-          backfaceVisibility: 'hidden',
-        }}
-      >
-        <div 
-          className='w-full h-full rounded-xl shadow hover:shadow-lg transition-shadow min-h-[200px] relative overflow-hidden'
-          style={{
-            borderStyle: questionBorderStyle === 'none' ? 'none' : questionBorderStyle,
-            borderWidth: questionBorderStyle === 'none' ? '0' : questionBorderWidth,
-            borderColor: questionBorderColor,
-            backgroundColor: questionBgColor || undefined,
-            color: questionFgColor || undefined,
-            fontSize: questionFontSize || undefined,
-            fontFamily: questionFontFamily || undefined
-          }}
-        >
+    <div className={cn('flip-card-container relative group cursor-pointer', className)} onClick={handleClick}>
+      <div className={cn('flip-card', flipped && `flipped-${flipAxis.toLowerCase()}`)}>
+        {/* Front Face - Question */}
+        <div className='flip-card-face flip-card-front'>
+          <div 
+            className='w-full h-full rounded-xl shadow hover:shadow-lg transition-shadow min-h-[200px] relative overflow-hidden'
+            style={questionStyles}
+          >
           {/* Background Image */}
           {(questionBackgroundImage || backgroundImage) && (
             <div
@@ -173,29 +175,13 @@ export function FlipCard({
             </div>
           </div>
         </div>
-      </animated.div>
-
-      <animated.div
-        className='w-full h-full'
-        style={{
-          opacity,
-          transform,
-          ...(flipAxis === 'Y' ? { rotateY: '180deg' } : { rotateX: '180deg' }),
-          backfaceVisibility: 'hidden',
-        }}
-      >
-        <div 
-          className='w-full h-full rounded-xl shadow hover:shadow-lg transition-shadow min-h-[200px] relative overflow-hidden'
-          style={{
-            borderStyle: answerBorderStyle === 'none' ? 'none' : answerBorderStyle,
-            borderWidth: answerBorderStyle === 'none' ? '0' : answerBorderWidth,
-            borderColor: answerBorderColor,
-            backgroundColor: answerBgColor || undefined,
-            color: answerFgColor || undefined,
-            fontSize: answerFontSize || undefined,
-            fontFamily: answerFontFamily || undefined
-          }}
-        >
+        
+        {/* Back Face - Answer */}
+        <div className={cn('flip-card-face', flipAxis === 'Y' ? 'flip-card-back-y' : 'flip-card-back-x')}>
+          <div 
+            className='w-full h-full rounded-xl shadow hover:shadow-lg transition-shadow min-h-[200px] relative overflow-hidden'
+            style={answerStyles}
+          >
           {/* Background Image */}
           {(answerBackgroundImage || backgroundImage) && (
             <div
@@ -265,7 +251,7 @@ export function FlipCard({
             </div>
           </div>
         </div>
-      </animated.div>
+      </div>
     </div>
   );
-}
+});
