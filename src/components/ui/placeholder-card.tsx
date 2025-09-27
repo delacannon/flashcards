@@ -101,7 +101,7 @@ interface PlaceholderCardGridProps {
 
 export function PlaceholderCardGrid({ count, className, config }: PlaceholderCardGridProps) {
   return (
-    <div className={cn('grid auto-rows-min gap-4 md:grid-cols-3 lg:grid-cols-4', className)}>
+    <div className={cn('grid auto-rows-min gap-4 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5', className)}>
       {Array.from({ length: count }).map((_, index) => (
         <PlaceholderCard 
           key={`placeholder-${index}`}

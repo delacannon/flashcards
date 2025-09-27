@@ -106,7 +106,7 @@ export const FlipCard = memo(function FlipCard({
             className='w-full h-full rounded-xl shadow hover:shadow-lg transition-shadow min-h-[200px] relative overflow-hidden'
             style={questionStyles}
           >
-          {/* Background Image */}
+            {/* Background Image */}
           {(questionBackgroundImage || backgroundImage) && (
             <div
               className='absolute inset-0 z-0'
@@ -174,6 +174,7 @@ export const FlipCard = memo(function FlipCard({
               </div>
             </div>
           </div>
+          </div>
         </div>
         
         {/* Back Face - Answer */}
@@ -182,7 +183,7 @@ export const FlipCard = memo(function FlipCard({
             className='w-full h-full rounded-xl shadow hover:shadow-lg transition-shadow min-h-[200px] relative overflow-hidden'
             style={answerStyles}
           >
-          {/* Background Image */}
+            {/* Background Image */}
           {(answerBackgroundImage || backgroundImage) && (
             <div
               className='absolute inset-0 z-0'
@@ -249,6 +250,7 @@ export const FlipCard = memo(function FlipCard({
                 )}
               </div>
             </div>
+          </div>
           </div>
         </div>
       </div>

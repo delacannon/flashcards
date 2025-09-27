@@ -104,27 +104,35 @@ export function useUpdateSet() {
       const previousSets = queryClient.getQueryData<FlashcardSet[]>(flashcardKeys.sets());
       const previousSet = queryClient.getQueryData<FlashcardSet>(flashcardKeys.set(updatedSet.id));
 
-      // Optimistically update the sets list (including card count)
+      // Optimistically update the sets list (including card count and name)
       if (previousSets) {
         queryClient.setQueryData<FlashcardSet[]>(
           flashcardKeys.sets(),
           previousSets.map(set => 
             set.id === updatedSet.id 
               ? { 
-                  ...updatedSet, 
-                  cardCount: updatedSet.flashcards?.length || 0 
+                  ...set,
+                  ...updatedSet,
+                  cardCount: updatedSet.flashcards?.length || 0,
+                  // Ensure name is properly updated
+                  name: updatedSet.name,
+                  title: updatedSet.name, // Some components use title instead of name
+                  // Preserve flashcards array reference if not provided
+                  flashcards: updatedSet.flashcards || set.flashcards
                 }
               : set
           )
         );
       }
 
-      // Optimistically update the individual set cache (with card count)
+      // Optimistically update the individual set cache (with card count and name)
       queryClient.setQueryData<FlashcardSet>(
         flashcardKeys.set(updatedSet.id),
         {
           ...updatedSet,
-          cardCount: updatedSet.flashcards?.length || 0
+          cardCount: updatedSet.flashcards?.length || 0,
+          name: updatedSet.name,
+          title: updatedSet.name // Ensure both name and title are in sync
         }
       );
 

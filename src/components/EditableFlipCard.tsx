@@ -132,7 +132,7 @@ export const EditableFlipCard = memo(function EditableFlipCard({
     editorProps: {
       attributes: {
         class:
-          'prose prose-sm focus:outline-none min-h-[2rem] cursor-text [&_mark]:bg-yellow-200 [&_mark]:px-1 [&_mark]:rounded',
+          'prose prose-sm focus:outline-none min-h-[2rem] cursor-text [&_mark]:bg-yellow-200 [&_mark]:px-1 [&_mark]:rounded hover:border-2 hover:border-red-500 hover:rounded-lg transition-all duration-200 p-2 -m-2',
         style: `color: ${questionFgColor || 'inherit'}; font-size: ${
           questionFontSize || '14px'
         }; font-family: ${questionFontFamily || 'inherit'};`,
@@ -169,7 +169,7 @@ export const EditableFlipCard = memo(function EditableFlipCard({
     editorProps: {
       attributes: {
         class:
-          'prose prose-sm focus:outline-none min-h-[2rem] cursor-text [&_mark]:bg-yellow-200 [&_mark]:px-1 [&_mark]:rounded',
+          'prose prose-sm focus:outline-none min-h-[2rem] cursor-text [&_mark]:bg-yellow-200 [&_mark]:px-1 [&_mark]:rounded hover:border-2 hover:border-red-500 hover:rounded-lg transition-all duration-200 p-2 -m-2',
         style: `color: ${answerFgColor || 'inherit'}; font-size: ${
           answerFontSize || '14px'
         }; font-family: ${answerFontFamily || 'inherit'};`,
@@ -326,7 +326,7 @@ export const EditableFlipCard = memo(function EditableFlipCard({
                   <EditorContent editor={questionEditor} />
                 ) : (
                   <div
-                    className='font-medium cursor-text hover:bg-black/5 rounded px-2 py-1 transition-colors prose prose-sm max-w-none'
+                    className='font-medium cursor-text hover:bg-black/5 hover:border-2 hover:border-red-500 hover:rounded-lg rounded px-2 py-1 transition-all duration-200 prose prose-sm max-w-none border-2 border-transparent'
                     style={{
                       fontSize: questionFontSize || '14px',
                       fontFamily: questionFontFamily || 'inherit',
@@ -452,7 +452,7 @@ export const EditableFlipCard = memo(function EditableFlipCard({
                   <EditorContent editor={answerEditor} />
                 ) : (
                   <div
-                    className='cursor-text hover:bg-black/5 rounded px-2 py-1 transition-colors prose prose-sm max-w-none'
+                    className='cursor-text hover:bg-black/5 hover:border-2 hover:border-red-500 hover:rounded-lg rounded px-2 py-1 transition-all duration-200 prose prose-sm max-w-none border-2 border-transparent'
                     style={{
                       fontSize: answerFontSize || '14px',
                       fontFamily: answerFontFamily || 'inherit',

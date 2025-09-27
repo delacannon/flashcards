@@ -40,6 +40,7 @@ export interface FlashcardSet {
   prompt?: string;  // AI generation prompt
   numberOfCards?: number;  // Total number of cards
   cardCount?: number;  // For lazy loading - number of cards without loading them
+  totalMarks?: number;  // Total marks/points for the flashcard set
   cards?: Flashcard[];  // Alternative to flashcards
   flashcards?: Flashcard[];  // Keep for backward compatibility - now optional for lazy loading
   config: FlashcardSetConfig;

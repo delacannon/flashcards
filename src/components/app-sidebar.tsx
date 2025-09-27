@@ -33,14 +33,20 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   flashcardSets: FlashcardSet[];
 }
 
-export function AppSidebar({ user, onSignOut, onShowAuthModal, flashcardSets, ...props }: AppSidebarProps) {
+export function AppSidebar({
+  user,
+  onSignOut,
+  onShowAuthModal,
+  flashcardSets,
+  ...props
+}: AppSidebarProps) {
   const { actions, selectedSet } = useFlashcardContext();
   const [searchQuery, setSearchQuery] = React.useState('');
 
   return (
-    <Sidebar {...props}>
+    <Sidebar {...props} className='overflow-x-hidden'>
       <SidebarHeader className='border-sidebar-border h-16 border-b'>
-        <NavUser user={user} onSignOut={onSignOut} onShowAuthModal={onShowAuthModal} />
+        Flashcards
       </SidebarHeader>
 
       <SidebarContent>
@@ -80,14 +86,11 @@ export function AppSidebar({ user, onSignOut, onShowAuthModal, flashcardSets, ..
       </SidebarContent>
 
       <SidebarFooter>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton>
-              <Settings className='h-4 w-4' />
-              <span>Settings</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+        <NavUser
+          user={user}
+          onSignOut={onSignOut}
+          onShowAuthModal={onShowAuthModal}
+        />
       </SidebarFooter>
 
       <SidebarRail />

@@ -13,8 +13,7 @@ import {
 import { ArrowLeft, Play, MoreVertical, Download, Upload, FileUp, Replace, ListPlus, LayoutGrid, Table as TableIcon, Search, X } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { PlayMode } from '@/components/PlayMode';
-import { aiService } from '@/services/ai';
-import { aiServiceAuth } from '@/services/ai-auth';
+import { aiService, aiServiceAuth } from '@/services/ai-edge';
 // Using simplified Supabase auth context
 import { useAuth } from '@/contexts/AuthContextSimple';
 import { AuthModal } from '@/components/AuthModal';
@@ -167,6 +166,8 @@ export function FlashcardSetView({
               const updatedSet = {
                 ...currentSet,
                 flashcards: [...generatedCardsRef.current],
+                cardCount: generatedCardsRef.current.length, // Keep card count in sync
+                config: currentSet.config // Preserve config
               };
               onUpdateSet(updatedSet);
               
@@ -179,7 +180,20 @@ export function FlashcardSetView({
             const finalSet = {
               ...currentSet,
               name: result.title,
+              title: result.title, // Ensure both name and title are set
               flashcards: generatedCardsRef.current,
+              cardCount: generatedCardsRef.current.length, // Explicitly set card count
+              // Preserve config to ensure it's not lost
+              config: currentSet.config
+            };
+            onUpdateSet(finalSet);
+          } else {
+            // Even if no title was generated, ensure the final state is saved with card count
+            const finalSet = {
+              ...currentSet,
+              flashcards: generatedCardsRef.current,
+              cardCount: generatedCardsRef.current.length,
+              config: currentSet.config
             };
             onUpdateSet(finalSet);
           }
@@ -620,6 +634,16 @@ export function FlashcardSetView({
         </Button>
         <h1 className='text-2xl font-bold flex-1'>{currentSet.name}</h1>
         <div className='flex items-center gap-3'>
+          {currentSet.totalMarks && (
+            <div className='flex flex-col items-end text-sm'>
+              <span className='text-muted-foreground'>Total: {currentSet.totalMarks} marks</span>
+              {localFlashcards.length > 0 && (
+                <span className='text-xs text-muted-foreground'>
+                  {(currentSet.totalMarks / localFlashcards.length).toFixed(2)} marks/card
+                </span>
+              )}
+            </div>
+          )}
           {/* View Mode Toggle */}
           {localFlashcards.length > 0 && (
             <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as 'cards' | 'table')}>
@@ -766,7 +790,7 @@ export function FlashcardSetView({
 
         {/* Show skeleton cards while generating */}
         {isGenerating && localFlashcards.length === 0 && (
-          <div className='grid auto-rows-min gap-4 md:grid-cols-3 lg:grid-cols-4'>
+          <div className='grid auto-rows-min gap-4 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5'>
             {Array.from({ length: 3 }).map((_, index) => (
               <PlaceholderCard 
                 key={`placeholder-gen-${index}`}

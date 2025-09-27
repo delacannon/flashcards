@@ -74,8 +74,10 @@ export function VirtualizedFlashcardGrid({
         setColumns(1);
       } else if (width < 1024) {
         setColumns(3);
-      } else {
+      } else if (width < 1536) { // xl screens
         setColumns(4);
+      } else { // 2xl screens and above
+        setColumns(5);
       }
     };
     
@@ -184,7 +186,7 @@ export function VirtualizedFlashcardGrid({
                     transform: `translateY(${virtualRow.start}px)`,
                   }}
                 >
-                  <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-4 pb-4">
+                  <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 pb-4">
                     {rowItems.map((item: any) => {
                       // Check if this is the "Add Card" card
                       if (item.isAddCard) {
