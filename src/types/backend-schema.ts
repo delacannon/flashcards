@@ -698,7 +698,7 @@ export function checkUsageLimit(
  */
 export function toBackendSchema(frontendSet: FlashcardSet): CreateFlashcardSetDTO {
   return {
-    name: frontendSet.name,
+    name: frontendSet.name || frontendSet.title,
     tags: [],
     is_public: false,
     ai_config: {

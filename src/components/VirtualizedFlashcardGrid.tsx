@@ -34,6 +34,8 @@ interface VirtualizedFlashcardGridProps {
   onCreateFlashcard: () => void;
   onEditFlashcard: (flashcard: Flashcard) => void;
   onDeleteFlashcard: (flashcardId: string) => void;
+  onRegenerateCard?: (cardId: string) => void;
+  regeneratingCardId?: string | null;
   onUpdateFlashcardContent: (id: string, question: string, answer: string) => void;
   onReorder: (newFlashcards: Flashcard[]) => void;
 }
@@ -45,6 +47,8 @@ export function VirtualizedFlashcardGrid({
   onCreateFlashcard,
   onEditFlashcard,
   onDeleteFlashcard,
+  onRegenerateCard,
+  regeneratingCardId,
   onUpdateFlashcardContent,
   onReorder,
 }: VirtualizedFlashcardGridProps) {
@@ -242,6 +246,8 @@ export function VirtualizedFlashcardGrid({
                           answerBorderColor={config?.answerBorderColor}
                           onEdit={() => onEditFlashcard(flashcard)}
                           onDelete={() => onDeleteFlashcard(flashcard.id)}
+                          onRegenerate={onRegenerateCard ? () => onRegenerateCard(flashcard.id) : undefined}
+                          isRegenerating={regeneratingCardId === flashcard.id}
                           onUpdateContent={onUpdateFlashcardContent}
                         />
                       );

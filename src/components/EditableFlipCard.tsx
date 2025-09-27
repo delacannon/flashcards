@@ -1,7 +1,7 @@
 import { useState, useEffect, memo } from 'react';
 import { useSpring, animated } from '@react-spring/web';
 import { Button } from '@/components/ui/button';
-import { Edit2, Trash2 } from 'lucide-react';
+import { Edit2, Trash2, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -55,6 +55,8 @@ interface EditableFlipCardProps {
   autoFlip?: boolean;
   onEdit: () => void;
   onDelete: () => void;
+  onRegenerate?: () => void;
+  isRegenerating?: boolean;
   onUpdateContent: (id: string, question: string, answer: string) => void;
   className?: string;
   dragHandle?: React.ReactNode;
@@ -90,6 +92,8 @@ export const EditableFlipCard = memo(function EditableFlipCard({
   autoFlip = false,
   onEdit,
   onDelete,
+  onRegenerate,
+  isRegenerating = false,
   onUpdateContent,
   className,
   dragHandle,
@@ -263,7 +267,8 @@ export const EditableFlipCard = memo(function EditableFlipCard({
         <div
           className={cn(
             'w-full h-full rounded-xl shadow hover:shadow-lg transition-shadow min-h-[200px] relative overflow-hidden',
-            isEditingQuestion && 'ring-2 ring-primary ring-offset-2'
+            isEditingQuestion && 'ring-2 ring-primary ring-offset-2',
+            isRegenerating && 'opacity-60'
           )}
           style={{
             borderStyle: questionBorderStyle === 'none' ? 'none' : questionBorderStyle,
@@ -296,6 +301,21 @@ export const EditableFlipCard = memo(function EditableFlipCard({
             </div>
           )}
           <div className='absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 z-20'>
+            {onRegenerate && (
+              <Button
+                size='icon'
+                variant='ghost'
+                className='h-8 w-8'
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRegenerate();
+                }}
+                disabled={isRegenerating}
+                title='Regenerate with AI'
+              >
+                <RefreshCw className={cn('h-4 w-4', isRegenerating && 'animate-spin')} />
+              </Button>
+            )}
             <Button
               size='icon'
               variant='ghost'
@@ -422,6 +442,21 @@ export const EditableFlipCard = memo(function EditableFlipCard({
             </div>
           )}
           <div className='absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 z-20'>
+            {onRegenerate && (
+              <Button
+                size='icon'
+                variant='ghost'
+                className='h-8 w-8'
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRegenerate();
+                }}
+                disabled={isRegenerating}
+                title='Regenerate with AI'
+              >
+                <RefreshCw className={cn('h-4 w-4', isRegenerating && 'animate-spin')} />
+              </Button>
+            )}
             <Button
               size='icon'
               variant='ghost'

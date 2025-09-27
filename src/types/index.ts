@@ -31,6 +31,9 @@ export interface FlashcardSetConfig {
   // Legacy fields for backward compatibility
   backgroundImage?: string;
   backgroundImageOpacity?: number;
+  // AI generation
+  aiPrompt?: string;
+  cardCount?: number;
 }
 
 export interface FlashcardSet {

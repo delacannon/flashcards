@@ -10,17 +10,17 @@ import {
   DialogFooter,
   DialogDescription,
 } from '@/components/ui/dialog';
-import { ArrowLeft, Play, MoreVertical, Download, Upload, FileUp, Replace, ListPlus, LayoutGrid, Table as TableIcon, Search, X } from 'lucide-react';
+import { ArrowLeft, Play, MoreVertical, Download, Upload, FileUp, Replace, ListPlus, LayoutGrid, Table as TableIcon, Search, X, Sparkles } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
+import { Slider } from '@/components/ui/slider';
 import { PlayMode } from '@/components/PlayMode';
-import { aiService, aiServiceAuth } from '@/services/ai-edge';
+import { aiService } from '@/services/ai-edge';
 // Using simplified Supabase auth context
 import { useAuth } from '@/contexts/AuthContextSimple';
 import { AuthModal } from '@/components/AuthModal';
-import { Skeleton } from '@/components/ui/skeleton';
 import { PlaceholderCardGrid, PlaceholderCard } from '@/components/ui/placeholder-card';
 import { Progress } from '@/components/ui/progress';
-import { AlertCircle, Sparkles } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,7 +32,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { FlashcardTableView } from '@/components/FlashcardTableView';
 import { VirtualizedFlashcardGrid } from '@/components/VirtualizedFlashcardGrid';
 
-import type { FlashcardSet, Flashcard, FlashcardSetConfig } from '@/types';
+import type { FlashcardSet, Flashcard } from '@/types';
 import { useFlashcardSet } from '@/hooks/useFlashcards';
 
 interface FlashcardSetViewProps {
@@ -51,7 +51,7 @@ export function FlashcardSetView({
   
   // Use lazy loading if flashcards are not loaded
   const shouldUseLazyLoading = !set.flashcards;
-  const { data: fullSet, isLoading: isLoadingSet, isFetching: isFetchingSet, error: loadError } = useFlashcardSet(
+  const { data: fullSet, isLoading: isLoadingSet, error: loadError } = useFlashcardSet(
     shouldUseLazyLoading ? set.id : null
   );
   
@@ -66,8 +66,8 @@ export function FlashcardSetView({
   );
   const [isEditing, setIsEditing] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-  const [question, setQuestion] = useState('');
-  const [answer, setAnswer] = useState('');
+  const questionInputRef = useRef<HTMLTextAreaElement>(null);
+  const answerInputRef = useRef<HTMLTextAreaElement>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [flashcardToDelete, setFlashcardToDelete] = useState<Flashcard | null>(
     null
@@ -94,6 +94,15 @@ export function FlashcardSetView({
   // Search state
   const [searchInput, setSearchInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // AI generation for modal state
+  const [showAIPrompt, setShowAIPrompt] = useState(false);
+  const [aiPromptText, setAIPromptText] = useState('');
+  const [isGeneratingSingle, setIsGeneratingSingle] = useState(false);
+  const [regeneratingCardId, setRegeneratingCardId] = useState<string | null>(null);
+  const [numberOfCardsToGenerate, setNumberOfCardsToGenerate] = useState(1);
+  const [generatingCardIndex, setGeneratingCardIndex] = useState(0);
+  const aiPromptInputRef = useRef<HTMLTextAreaElement>(null);
   
   // Sync local flashcards when flashcards change
   useEffect(() => {
@@ -219,15 +228,33 @@ export function FlashcardSetView({
 
   const handleEditFlashcard = useCallback((flashcard: Flashcard) => {
     setSelectedFlashcard(flashcard);
-    setQuestion(flashcard.question);
-    setAnswer(flashcard.answer);
+    // Set initial values for editing (limited to 255 characters)
+    setTimeout(() => {
+      if (questionInputRef.current) {
+        questionInputRef.current.value = flashcard.question.slice(0, 255);
+      }
+      if (answerInputRef.current) {
+        answerInputRef.current.value = flashcard.answer.slice(0, 255);
+      }
+    }, 0);
     setIsEditing(true);
   }, []);
 
   const handleCreateFlashcard = useCallback(() => {
-    setQuestion('');
-    setAnswer('');
+    // Clear the textareas
+    if (questionInputRef.current) {
+      questionInputRef.current.value = '';
+    }
+    if (answerInputRef.current) {
+      answerInputRef.current.value = '';
+    }
     setIsCreating(true);
+    setShowAIPrompt(false);
+    setAIPromptText('');
+    if (aiPromptInputRef.current) {
+      aiPromptInputRef.current.value = '';
+    }
+    setNumberOfCardsToGenerate(1);
   }, []);
 
   const handlePlayMode = useCallback(() => {
@@ -243,6 +270,9 @@ export function FlashcardSetView({
   }, []);
 
   const handleSaveFlashcard = () => {
+    const question = questionInputRef.current?.value || '';
+    const answer = answerInputRef.current?.value || '';
+    
     if (isCreating) {
       const newFlashcard: Flashcard = {
         id: uuidv4(),
@@ -269,8 +299,13 @@ export function FlashcardSetView({
       onUpdateSet(updatedSet);
       setIsEditing(false);
     }
-    setQuestion('');
-    setAnswer('');
+    // Clear the refs
+    if (questionInputRef.current) {
+      questionInputRef.current.value = '';
+    }
+    if (answerInputRef.current) {
+      answerInputRef.current.value = '';
+    }
     setSelectedFlashcard(null);
   };
 
@@ -322,9 +357,20 @@ export function FlashcardSetView({
   const handleCancel = useCallback(() => {
     setIsEditing(false);
     setIsCreating(false);
-    setQuestion('');
-    setAnswer('');
+    // Clear the refs
+    if (questionInputRef.current) {
+      questionInputRef.current.value = '';
+    }
+    if (answerInputRef.current) {
+      answerInputRef.current.value = '';
+    }
     setSelectedFlashcard(null);
+    setShowAIPrompt(false);
+    setAIPromptText('');
+    if (aiPromptInputRef.current) {
+      aiPromptInputRef.current.value = '';
+    }
+    setNumberOfCardsToGenerate(1);
   }, []);
 
   const handleDownloadCSV = () => {
@@ -358,7 +404,7 @@ export function FlashcardSetView({
     const url = URL.createObjectURL(blob);
     
     // Create safe filename
-    const safeName = set.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    const safeName = (set.name || 'untitled').replace(/[^a-z0-9]/gi, '_').toLowerCase();
     const filename = `${safeName}_flashcards.csv`;
     
     // Trigger download
@@ -516,6 +562,158 @@ export function FlashcardSetView({
     setImportDialogOpen(false);
     setImportPreview([]);
   };
+
+  const handleRegenerateCard = useCallback(async (cardId: string) => {
+    // Check if AI prompt exists
+    if (!currentSet.config?.aiPrompt) {
+      alert('No AI prompt was configured for this flashcard set');
+      return;
+    }
+
+    // Check authentication
+    if (!user) {
+      setShowAuthModal(true);
+      return;
+    }
+
+    setRegeneratingCardId(cardId);
+
+    try {
+      // Generate a single new card using the original prompt
+      const result = await aiService.generateFlashcardsWithTitle(
+        currentSet.config.aiPrompt,
+        1, // Generate only 1 card
+        false // Don't generate title
+      );
+
+      if (result.flashcards && result.flashcards.length > 0) {
+        const newCard = result.flashcards[0];
+        
+        // Update the specific card with the regenerated content
+        const updatedFlashcards = localFlashcards.map((fc) =>
+          fc.id === cardId 
+            ? { ...fc, question: newCard.question, answer: newCard.answer } 
+            : fc
+        );
+        
+        setLocalFlashcards(updatedFlashcards);
+        const updatedSet = {
+          ...currentSet,
+          flashcards: updatedFlashcards,
+        };
+        onUpdateSet(updatedSet);
+      }
+    } catch (error) {
+      console.error('Failed to regenerate flashcard:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to regenerate flashcard';
+      
+      if (errorMessage.includes('AUTHENTICATION_REQUIRED')) {
+        setShowAuthModal(true);
+      } else {
+        alert(errorMessage);
+      }
+    } finally {
+      setRegeneratingCardId(null);
+    }
+  }, [currentSet, localFlashcards, user, onUpdateSet]);
+
+  const handleGenerateWithAI = useCallback(async () => {
+    const promptValue = aiPromptInputRef.current?.value?.trim() || '';
+    if (!promptValue) {
+      alert('Please enter a prompt for AI generation');
+      return;
+    }
+
+    // Check authentication
+    if (!user) {
+      setShowAuthModal(true);
+      return;
+    }
+
+    setIsGeneratingSingle(true);
+    setGeneratingCardIndex(0);
+
+    try {
+      // Combine the original context with the user's specific request
+      let finalPrompt = promptValue;
+      
+      // If the flashcard set has an original AI prompt, use it as context
+      if (currentSet.config?.aiPrompt) {
+        // Combine the original context with the user's request
+        if (numberOfCardsToGenerate > 1) {
+          finalPrompt = `${currentSet.config.aiPrompt}. Create ${numberOfCardsToGenerate} different flashcards about: ${promptValue}`;
+        } else {
+          finalPrompt = `${currentSet.config.aiPrompt}. Create a flashcard about: ${promptValue}`;
+        }
+      } else if (numberOfCardsToGenerate > 1) {
+        finalPrompt = `Create ${numberOfCardsToGenerate} different flashcards about: ${promptValue}`;
+      }
+      
+      // Generate cards based on the combined prompt
+      const result = await aiService.generateFlashcardsWithTitle(
+        finalPrompt,
+        numberOfCardsToGenerate,
+        false, // Don't generate title
+        (card, index) => {
+          // Progress callback for visual feedback
+          setGeneratingCardIndex(index + 1);
+        }
+      );
+
+      if (result.flashcards && result.flashcards.length > 0) {
+        // If only one card was requested, fill the form
+        if (numberOfCardsToGenerate === 1) {
+          const generatedCard = result.flashcards[0];
+          if (questionInputRef.current) {
+            // Limit to 255 characters
+            questionInputRef.current.value = generatedCard.question.slice(0, 255);
+          }
+          if (answerInputRef.current) {
+            // Limit to 255 characters
+            answerInputRef.current.value = generatedCard.answer.slice(0, 255);
+          }
+        } else {
+          // For multiple cards, add them directly to the set
+          const newCards = result.flashcards.map(card => ({
+            id: uuidv4(),
+            question: card.question.slice(0, 255),
+            answer: card.answer.slice(0, 255),
+          }));
+          
+          const updatedFlashcards = [...localFlashcards, ...newCards];
+          setLocalFlashcards(updatedFlashcards);
+          
+          const updatedSet = {
+            ...currentSet,
+            flashcards: updatedFlashcards,
+          };
+          onUpdateSet(updatedSet);
+          
+          // Close the create dialog
+          setIsCreating(false);
+        }
+        
+        setShowAIPrompt(false);
+        setAIPromptText('');
+        if (aiPromptInputRef.current) {
+          aiPromptInputRef.current.value = '';
+        }
+        setNumberOfCardsToGenerate(1); // Reset to default
+      }
+    } catch (error) {
+      console.error('Failed to generate flashcards:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to generate flashcards';
+      
+      if (errorMessage.includes('AUTHENTICATION_REQUIRED')) {
+        setShowAuthModal(true);
+      } else {
+        alert(errorMessage);
+      }
+    } finally {
+      setIsGeneratingSingle(false);
+      setGeneratingCardIndex(0);
+    }
+  }, [numberOfCardsToGenerate, user, currentSet, localFlashcards, onUpdateSet]);
 
   if (isPlaying) {
     // Play filtered flashcards if search is active, otherwise all cards
@@ -835,6 +1033,8 @@ export function FlashcardSetView({
             onCreateFlashcard={handleCreateFlashcard}
             onEditFlashcard={handleEditFlashcard}
             onDeleteFlashcard={handleDeleteFlashcard}
+            onRegenerateCard={handleRegenerateCard}
+            regeneratingCardId={regeneratingCardId}
             onUpdateFlashcardContent={handleUpdateFlashcardContent}
             onReorder={(newFlashcards) => {
               // When reordering filtered results, we need to update the full list
@@ -872,30 +1072,152 @@ export function FlashcardSetView({
             </DialogTitle>
           </DialogHeader>
           <div className='grid gap-4 py-4'>
+            {/* AI Generation Section for new cards */}
+            {isCreating && !showAIPrompt && (
+              <Button
+                variant='outline'
+                onClick={() => setShowAIPrompt(true)}
+                className='w-full flex items-center gap-2'
+              >
+                <Sparkles className='h-4 w-4' />
+                Generate with AI
+              </Button>
+            )}
+            
+            {/* AI Prompt Input */}
+            {showAIPrompt && (
+              <div className='grid gap-2'>
+                <label htmlFor='ai-prompt' className='text-sm font-medium'>
+                  AI Prompt
+                </label>
+                {/* Show context hint if original prompt exists */}
+                {currentSet.config?.aiPrompt && (
+                  <div className='text-xs text-muted-foreground bg-muted/50 p-2 rounded-md'>
+                    <span className='font-medium'>Context: </span>
+                    {currentSet.config.aiPrompt}
+                  </div>
+                )}
+                <Textarea
+                  ref={aiPromptInputRef}
+                  id='ai-prompt'
+                  placeholder={
+                    currentSet.config?.aiPrompt
+                      ? 'Describe a specific aspect or detail for this card...'
+                      : 'Describe what flashcard you want to generate...'
+                  }
+                  onChange={(e) => {
+                    // Limit to 255 characters
+                    if (e.target.value.length > 255) {
+                      e.target.value = e.target.value.slice(0, 255);
+                    }
+                    // Just update the state to track if there's text (for disabling other fields)
+                    setAIPromptText(e.target.value.trim().length > 0 ? 'has-text' : '');
+                  }}
+                  maxLength={255}
+                  className='min-h-[60px]'
+                  autoFocus={true}
+                />
+                {/* Slider for number of cards */}
+                <div className='space-y-2'>
+                  <div className='flex items-center justify-between'>
+                    <label className='text-sm text-muted-foreground'>
+                      Number of cards to generate
+                    </label>
+                    <span className='text-sm font-medium'>
+                      {numberOfCardsToGenerate}
+                    </span>
+                  </div>
+                  <Slider
+                    value={[numberOfCardsToGenerate]}
+                    onValueChange={(value) => setNumberOfCardsToGenerate(value[0])}
+                    min={1}
+                    max={10}
+                    step={1}
+                    className='w-full'
+                  />
+                  <div className='flex justify-between text-xs text-muted-foreground'>
+                    <span>1</span>
+                    <span>10</span>
+                  </div>
+                </div>
+                <div className='flex gap-2'>
+                  <Button
+                    variant='outline'
+                    size='sm'
+                    onClick={() => {
+                      setShowAIPrompt(false);
+                      setAIPromptText('');
+                      if (aiPromptInputRef.current) {
+                        aiPromptInputRef.current.value = '';
+                      }
+                    }}
+                    disabled={isGeneratingSingle}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size='sm'
+                    onClick={handleGenerateWithAI}
+                    disabled={isGeneratingSingle || !aiPromptText}
+                    className='flex items-center gap-2'
+                  >
+                    {isGeneratingSingle ? (
+                      <>
+                        {numberOfCardsToGenerate > 1 && generatingCardIndex > 0
+                          ? `Generating ${generatingCardIndex}/${numberOfCardsToGenerate}...`
+                          : 'Generating...'}
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className='h-4 w-4' />
+                        Generate {numberOfCardsToGenerate > 1 ? `${numberOfCardsToGenerate} Cards` : 'Card'}
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
+            
             <div className='grid gap-2'>
-              <label htmlFor='question' className='text-sm font-medium'>
-                Question
+              <label htmlFor='question' className='text-sm font-medium flex items-center justify-between'>
+                <span>Question (supports Markdown)</span>
+                <span className='text-xs text-muted-foreground'>Max 255 characters</span>
               </label>
               <Textarea
+                ref={questionInputRef}
                 id='question'
-                placeholder='Enter the question...'
-                value={question}
-                onChange={(e) => setQuestion(e.target.value)}
+                placeholder='Enter the question... (supports **bold**, *italic*, `code`)'
+                maxLength={255}
+                onChange={(e) => {
+                  // Enforce 255 character limit
+                  if (e.target.value.length > 255) {
+                    e.target.value = e.target.value.slice(0, 255);
+                  }
+                }}
                 className='min-h-[80px]'
                 autoFocus={false}
+                disabled={isCreating && (showAIPrompt || aiPromptText)}
               />
             </div>
             <div className='grid gap-2'>
-              <label htmlFor='answer' className='text-sm font-medium'>
-                Answer
+              <label htmlFor='answer' className='text-sm font-medium flex items-center justify-between'>
+                <span>Answer (supports Markdown)</span>
+                <span className='text-xs text-muted-foreground'>Max 255 characters</span>
               </label>
               <Textarea
+                ref={answerInputRef}
                 id='answer'
-                placeholder='Enter the answer...'
-                value={answer}
-                onChange={(e) => setAnswer(e.target.value)}
+                placeholder='Enter the answer... (supports **bold**, *italic*, `code`)'
+                maxLength={255}
+                onChange={(e) => {
+                  // Enforce 255 character limit
+                  if (e.target.value.length > 255) {
+                    e.target.value = e.target.value.slice(0, 255);
+                  }
+                }}
                 className='min-h-[80px]'
                 autoFocus={false}
+                disabled={isCreating && (showAIPrompt || aiPromptText)}
               />
             </div>
           </div>
@@ -903,7 +1225,11 @@ export function FlashcardSetView({
             <Button variant='outline' onClick={handleCancel}>
               Cancel
             </Button>
-            <Button onClick={handleSaveFlashcard}>
+            <Button 
+              onClick={handleSaveFlashcard}
+              disabled={isCreating && (showAIPrompt || aiPromptText)}
+              title={isCreating && (showAIPrompt || aiPromptText) ? 'Complete or cancel the AI generation first' : ''}
+            >
               {isCreating ? 'Create' : 'Save'}
             </Button>
           </DialogFooter>

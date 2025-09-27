@@ -40,6 +40,8 @@ interface SortableFlipCardProps {
   autoFlip?: boolean;
   onEdit: () => void;
   onDelete: () => void;
+  onRegenerate?: () => void;
+  isRegenerating?: boolean;
   onUpdateContent: (id: string, question: string, answer: string) => void;
 }
 
